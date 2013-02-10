@@ -1,0 +1,31 @@
+name:                QuickAsm
+version:             0.1
+stability:           alpha
+homepage:            https://github.com/mgajda/QuickAsm
+package-url:         http://hackage.haskell.org/package/QuickAsm
+synopsis:            Quick assembly of fragments using NMR restraints.
+description:         Toy implementation
+category:            Bioinformatics 
+license:             BSD3
+license-file:        LICENSE
+
+author:              Michal J. Gajda
+copyright:           Copyright by Michal J. Gajda '2013
+maintainer:          mjgajda@googlemail.com
+bug-reports:         mailto:mjgajda@googlemail.com
+
+build-type:          Simple
+cabal-version:       >=1.8
+tested-with:         GHC==7.4.2
+data-files:          README
+
+source-repository head
+  type:     git
+  location: git://github.com:mgajda/hpdb.git
+
+Library
+  ghc-options:      -fspec-constr-count=4 -O3 
+  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector
+  exposed-modules:  Topo
+  exposed:          True
+
