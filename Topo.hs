@@ -1,4 +1,9 @@
-module Topo where
+module Topo( Tree(..)
+           , Torsion(..), Cartesian(..)
+           , xferC, xferT
+           , proteinBackboneT
+           , constructBackbone
+           ) where
 
 import Data.Vector.V3
 import Data.Tree
@@ -7,11 +12,13 @@ data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
                        , tAtName            :: !String
                        , tResName           :: !String
-                       , tResId             :: !Int    }
+                       , tResId             :: !Int
+                       , tAtId              :: !Int    }
 
 data Cartesian = Cartesian { cPos     :: !Vector3
                            , cAtName  :: !String
                            , cResName :: !String
+                           , cAtId    :: !Int
                            , cResId   :: !Int     }
 
 type TorsionTopo   = Tree Torsion
@@ -22,6 +29,7 @@ xferC ::  Torsion -> Cartesian
 xferC tors = Cartesian { cPos     = 0
                        , cAtName  = tAtName  tors
                        , cResName = tResName tors
+                       , cAtId    = tAtId    tors
                        , cResId   = tResId   tors }
 
 xferT ::  Cartesian -> Torsion
@@ -29,12 +37,13 @@ xferT cart = Torsion { tPlanar   = 0
                      , tDihedral = 0
                      , tBondLen  = 0
                      , tAtName   = cAtName  cart
+                     , tAtId     = cAtId    cart
                      , tResName  = cResName cart
                      , tResId    = cResId   cart }
 
 -- | Creates protein backbone from residue name, identifier and torsion angles.
 --   Also accepts an optional argument for next residue in chain.
-proteinBackboneT :: String-> Int-> Double-> Double-> Double-> [Tree Torsion] -> [Tree Torsion]-> Tree Torsion
+proteinBackboneT :: String-> Int-> Double-> Double-> Double-> (Double -> [Tree Torsion]) -> [Tree Torsion]-> Tree Torsion
 proteinBackboneT resName resId psi phi omega sc tail =
     Node n [
       Node ca [ -- TODO: add sidechain
@@ -46,6 +55,7 @@ proteinBackboneT resName resId psi phi omega sc tail =
                                           , tDihedral = dihe
                                           , tBondLen  = bondLen
                                           , tAtName   = name
+                                          , tAtId     = atId
                                           , tResName  = resName
                                           , tResId    = resId   }
     -- TODO: check that angles are not shifted
@@ -56,16 +66,40 @@ proteinBackboneT resName resId psi phi omega sc tail =
     o  = at (-120.5) omega 1.24 "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
-onlyProteinBackboneT :: String-> Int-> Double-> Double-> Double-> [Tree Torsion]-> Tree Torsion
-onlyProteinBackboneT resName resId psi phi omega tail = proteinBackboneT resName resId psi phi omega [] tail
+onlyProteinBackboneT :: String -> Int -> Double -> Double -> Double -> [Tree Torsion] -> Tree Torsion
+onlyProteinBackboneT resName resId psi phi omega tail = proteinBackboneT resName resId psi phi omega (const []) tail
 
 constructBackbone :: [Char] -> [(Double, Double, Double)] -> Tree Torsion
 constructBackbone seq dihedrals = head $ constructBackbone' seq dihedrals []
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 
-constructBackbone' :: [Char]-> [(Double, Double, Double)] -> [Tree Torsion] -> [Tree Torsion]
+constructBackbone' :: [Char] -> [(Double, Double, Double)] -> [Tree Torsion] -> [Tree Torsion]
 constructBackbone' seq dihedrals = foldr1 (.) $ zipWith3 buildResidue seq [1..] dihedrals
   where
     -- TODO: convert resName
     buildResidue resName resId (psi, phi, omega) tail = [onlyProteinBackboneT [resName] resId psi phi omega tail]
+
+-- TODO: computing Cartesian chain from Torsion
+-- TODO: printing Torsion as Silent
+-- TODO: reading Torsion as Silent
+
+-- TODO: Method that gives unique atom numbers
+
+-- | Prints Cartesian as PDB ATOM record to a given output file.
+printPDBAtom :: Handle -> Cartesian -> IO ()
+printPDBAtom outh (Cartesian { cPos     = position
+                             , cAtName  = atName
+                             , cResName = resName
+                             , cResId   = resNum
+                             , cAtId    = atId     }) =
+   hPrintf outh
+           "ATOM  %5d%3s   %3s A%4d     %7.3f %7.3f %7.3f  1.00  0.00\n"
+              atNum atName resName resNum (v3x position)
+                                          (v3y position)
+                                          (v3z position) >> return ()
+
+-- Compute positions from torsion angles
+placeAtoms :: TorsionTopo -> CartesianTopo
+placeAtoms = undefined
+
 
