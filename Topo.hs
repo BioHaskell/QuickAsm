@@ -12,12 +12,14 @@ import Text.Printf
 import Data.Vector.V3
 import Data.Vector.Class
 import Data.Tree
-import Data.Traversable(Traversable(..), mapAccumL)
 
 import Angle
 import Geom
-import UniTree(descendTree) -- import Uniplate instance
 
+descendTree ::  (a -> b -> (a, c)) -> a -> Tree b -> Tree c
+descendTree f acc (Node rec forest) = Node rec' $ map (descendTree f acc') $ forest
+  where
+    (acc', rec') = f acc rec
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
@@ -113,14 +115,10 @@ printPDBAtom outh (Cartesian { cPos     = position
 placeAtoms :: TorsionTopo -> CartesianTopo
 placeAtoms = undefined -- placeAtoms' (Vector3 0 0 0) (Vector3 0 1 0) (Vector3 0 0 1)
 
--- TODO: check that mapAccumL works right!!!
 -- Use:
--- mapAccumL
 -- Or rather para from:
 -- http://hackage.haskell.org/packages/archive/pointless-haskell/latest/doc/html/Generics-Pointless-Combinators.html#t:Ann
 -- http://hackage.haskell.org/packages/archive/uniplate/latest/doc/html/Data-Generics-Uniplate-Operations.html
---
---   :: Traversable t => (a -> b -> (a, c)) -> a -> t b -> (a, t c)
 
 computeNextCartesian :: (Vector3, Vector3, Vector3) -> Torsion ->
                            ((Vector3, Vector3, Vector3), Cartesian)

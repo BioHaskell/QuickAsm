@@ -22,7 +22,3 @@ depth = UniTree.para aux
 
 -- TODO: define with uniplate
 -- (a -> b -> (a, c)) -> a -> t b -> (a, t c)
-descendTree ::  (a -> b -> (a, c)) -> a -> Tree b -> Tree c
-descendTree f acc (Node rec forest) = Node rec' $ map (descendTree f acc') $ forest
-  where
-    (acc', rec') = f acc rec
