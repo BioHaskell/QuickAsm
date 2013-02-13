@@ -13,6 +13,8 @@ import Data.Vector.Class
 import Data.Tree
 import Data.Traversable(Traversable(..), mapAccumL)
 
+import Angle
+
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
                        , tAtName            :: !String
@@ -126,8 +128,8 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     ex = vnormalise $ ey `vcross` ez
     ey = vnormalise $ prevDir `vperpend` ez
     ez = vnormalise $ curDir -- normalization unnecessary?
-    dihe = tDihedral torsion - pi -- due to reversed directionality of ey
-    ang  = tPlanar   torsion
+    dihe = degree2radian $ tDihedral torsion - pi -- due to reversed directionality of ey
+    ang  = degree2radian $ tPlanar   torsion
     nextDir  = vnormalise $ ez |* (-cos ang) +sin ang *| (ey |* cos dihe + ex |* sin dihe)
     cart     = xferC torsion 
     
