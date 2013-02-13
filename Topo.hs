@@ -12,17 +12,10 @@ import Text.Printf
 import Data.Vector.V3
 import Data.Vector.Class
 import Data.Tree
+import Data.Tree.Util
 
 import Angle
 import Geom
-
--- | Descends a tree, inheriting accumulator
---   May be generalized into descend f a = fmap snd . inherit f a,
---   where inherit is top-down correspondent of scanl.
-descendTree ::  (a -> b -> (a, c)) -> a -> Tree b -> Tree c
-descendTree f acc (Node rec forest) = Node rec' $ map (descendTree f acc') $ forest
-  where
-    (acc', rec') = f acc rec
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
@@ -139,7 +132,7 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     
 
 computePositions :: TorsionTopo -> CartesianTopo
-computePositions topo = descendTree computeNextCartesian initialVectors topo
+computePositions topo = descend computeNextCartesian initialVectors topo
   where
     initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
 
