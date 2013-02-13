@@ -14,6 +14,7 @@ import Data.Tree
 import Data.Traversable(Traversable(..), mapAccumL)
 
 import Angle
+import Geom
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
@@ -108,12 +109,6 @@ printPDBAtom outh (Cartesian { cPos     = position
 -- Compute positions from torsion angles
 placeAtoms :: TorsionTopo -> CartesianTopo
 placeAtoms = undefined -- placeAtoms' (Vector3 0 0 0) (Vector3 0 1 0) (Vector3 0 0 1)
-
--- | Component of v that is perpendicular to w.
-v `vperpend` w = v - vproj
-  where
-    -- | Component of v that is parallel to w.
-    vproj = (v `vdot` w) *| w
 
 -- Use:
 -- mapAccumL
