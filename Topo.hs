@@ -16,7 +16,7 @@ import Data.Traversable(Traversable(..), mapAccumL)
 
 import Angle
 import Geom
-import UniTree() -- import Uniplate instance
+import UniTree(descendTree) -- import Uniplate instance
 
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
@@ -138,9 +138,8 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     
 
 computePositions :: TorsionTopo -> CartesianTopo
-computePositions topo = result
+computePositions topo = descendTree computeNextCartesian initialVectors topo
   where
-    (finalVectors, result) = mapAccumL computeNextCartesian initialVectors topo
     initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
 
 -- | Compute torsion angles from a Cartesian topology.
