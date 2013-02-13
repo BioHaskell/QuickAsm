@@ -5,8 +5,13 @@ module Topo( Tree(..)
            , constructBackbone
            ) where
 
+import System.IO
+import Text.Printf
+
 import Data.Vector.V3
+import Data.Vector.Class
 import Data.Tree
+import Data.Traversable(Traversable(..), mapAccumL)
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
@@ -55,7 +60,7 @@ proteinBackboneT resName resId psi phi omega sc tail =
                                           , tDihedral = dihe
                                           , tBondLen  = bondLen
                                           , tAtName   = name
-                                          , tAtId     = atId
+                                          , tAtId     = 0 -- to be filled by another method
                                           , tResName  = resName
                                           , tResId    = resId   }
     -- TODO: check that angles are not shifted
@@ -91,7 +96,7 @@ printPDBAtom outh (Cartesian { cPos     = position
                              , cAtName  = atName
                              , cResName = resName
                              , cResId   = resNum
-                             , cAtId    = atId     }) =
+                             , cAtId    = atNum    }) =
    hPrintf outh
            "ATOM  %5d%3s   %3s A%4d     %7.3f %7.3f %7.3f  1.00  0.00\n"
               atNum atName resName resNum (v3x position)
@@ -100,6 +105,38 @@ printPDBAtom outh (Cartesian { cPos     = position
 
 -- Compute positions from torsion angles
 placeAtoms :: TorsionTopo -> CartesianTopo
-placeAtoms = undefined
+placeAtoms = undefined -- placeAtoms' (Vector3 0 0 0) (Vector3 0 1 0) (Vector3 0 0 1)
 
+-- | Component of v that is perpendicular to w.
+v `vperpend` w = v - vproj
+  where
+    -- | Component of v that is parallel to w.
+    vproj = (v `vdot` w) *| w
 
+-- Use:
+-- mapAccumL
+--   :: Traversable t => (a -> b -> (a, c)) -> a -> t b -> (a, t c)
+
+computeNextCartesian :: (Vector3, Vector3, Vector3) -> Torsion ->
+                           ((Vector3, Vector3, Vector3), Cartesian)
+computeNextCartesian (prevDir, curDir, curPos) torsion =
+    ((curDir, nextDir, nextPos), cart)
+  where
+    nextPos = curPos + tBondLen torsion *| nextDir
+    ex = vnormalise $ ey `vcross` ez
+    ey = vnormalise $ prevDir `vperpend` ez
+    ez = vnormalise $ curDir -- normalization unnecessary?
+    dihe = tDihedral torsion - pi -- due to reversed directionality of ey
+    ang  = tPlanar   torsion
+    nextDir  = vnormalise $ ez |* (-cos ang) +sin ang *| (ey |* cos dihe + ex |* sin dihe)
+    cart     = xferC torsion 
+    
+
+testAccum :: TorsionTopo -> CartesianTopo
+testAccum topo = result
+  where
+    (finalVectors, result) = mapAccumL computeNextCartesian initialVectors topo
+    initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
+
+-- TODO: move unit tests to this module
+-- TODO: add silent2PDB script
