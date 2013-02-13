@@ -16,6 +16,9 @@ import Data.Tree
 import Angle
 import Geom
 
+-- | Descends a tree, inheriting accumulator
+--   May be generalized into descend f a = fmap snd . inherit f a,
+--   where inherit is top-down correspondent of scanl.
 descendTree ::  (a -> b -> (a, c)) -> a -> Tree b -> Tree c
 descendTree f acc (Node rec forest) = Node rec' $ map (descendTree f acc') $ forest
   where
