@@ -61,8 +61,8 @@ proteinBackboneT resName resId psi phi omega sc tail =
     -- TODO: check that angles are not shifted
     -- 1.45:1.52:1.32
     n  = at   116.2  omega 1.32 "N"
-    c  = at   122.7  phi   1.45 "C"
-    ca = at   111.2  psi   1.52 "CA"
+    ca = at   111.2  psi   1.45 "CA"
+    c  = at   122.7  phi   1.52 "C"
     o  = at (-120.5) omega 1.24 "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
