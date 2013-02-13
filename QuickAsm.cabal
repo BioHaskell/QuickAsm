@@ -25,7 +25,7 @@ source-repository head
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
-  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector
+  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate
   exposed-modules:  Topo
   exposed:          True
 

@@ -3,6 +3,7 @@ module Topo( Tree(..)
            , xferC, xferT
            , proteinBackboneT
            , constructBackbone
+           , computePositions
            ) where
 
 import System.IO
@@ -15,6 +16,8 @@ import Data.Traversable(Traversable(..), mapAccumL)
 
 import Angle
 import Geom
+import UniTree() -- import Uniplate instance
+
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
@@ -110,8 +113,13 @@ printPDBAtom outh (Cartesian { cPos     = position
 placeAtoms :: TorsionTopo -> CartesianTopo
 placeAtoms = undefined -- placeAtoms' (Vector3 0 0 0) (Vector3 0 1 0) (Vector3 0 0 1)
 
+-- TODO: check that mapAccumL works right!!!
 -- Use:
 -- mapAccumL
+-- Or rather para from:
+-- http://hackage.haskell.org/packages/archive/pointless-haskell/latest/doc/html/Generics-Pointless-Combinators.html#t:Ann
+-- http://hackage.haskell.org/packages/archive/uniplate/latest/doc/html/Data-Generics-Uniplate-Operations.html
+--
 --   :: Traversable t => (a -> b -> (a, c)) -> a -> t b -> (a, t c)
 
 computeNextCartesian :: (Vector3, Vector3, Vector3) -> Torsion ->
@@ -129,11 +137,19 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     cart     = xferC torsion 
     
 
-testAccum :: TorsionTopo -> CartesianTopo
-testAccum topo = result
+computePositions :: TorsionTopo -> CartesianTopo
+computePositions topo = result
   where
     (finalVectors, result) = mapAccumL computeNextCartesian initialVectors topo
     initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
 
+-- | Compute torsion angles from a Cartesian topology.
+computeTorsions :: CartesianTopo -> TorsionTopo
+computeTorsions = undefined
+
+-- | Take a list of atom records, and Cartesian topology of a chain.
+reconstructTopology = undefined
+
 -- TODO: move unit tests to this module
 -- TODO: add silent2PDB script
+
