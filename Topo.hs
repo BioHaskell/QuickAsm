@@ -107,16 +107,10 @@ printPDBAtom outh (Cartesian { cPos     = position
                                           (v3y position)
                                           (v3z position) >> return ()
 
--- Compute positions from torsion angles
-placeAtoms :: TorsionTopo -> CartesianTopo
-placeAtoms = undefined -- placeAtoms' (Vector3 0 0 0) (Vector3 0 1 0) (Vector3 0 0 1)
-
--- Use:
--- Or rather para from:
--- http://hackage.haskell.org/packages/archive/pointless-haskell/latest/doc/html/Generics-Pointless-Combinators.html#t:Ann
--- http://hackage.haskell.org/packages/archive/uniplate/latest/doc/html/Data-Generics-Uniplate-Operations.html
-
-computeNextCartesian :: (Vector3, Vector3, Vector3) -> Torsion ->
+-- | Takes two most recent consecutive bond vectors, and current position
+--   as a tuple, and a `Torsion` record to produce Cartesian position.
+computeNextCartesian :: (Vector3, Vector3, Vector3) ->
+                           Torsion ->
                            ((Vector3, Vector3, Vector3), Cartesian)
 computeNextCartesian (prevDir, curDir, curPos) torsion =
     ((curDir, nextDir, nextPos), cart)
@@ -130,9 +124,9 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     nextDir  = vnormalise $ ez |* (-cos ang) +sin ang *| (ey |* cos dihe + ex |* sin dihe)
     cart     = xferC torsion 
     
-
+-- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
 computePositions :: TorsionTopo -> CartesianTopo
-computePositions topo = descend computeNextCartesian initialVectors topo
+computePositions topo = descending computeNextCartesian initialVectors topo
   where
     initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
 
