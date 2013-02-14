@@ -1,21 +1,26 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Topo( Tree(..)
            , Torsion(..), Cartesian(..)
            , xferC, xferT
            , proteinBackboneT
            , constructBackbone
            , computePositions
+           , showCartesian
+           , showCartesianTopo
            ) where
 
 import System.IO
-import Text.Printf
 
 import Data.Vector.V3
 import Data.Vector.Class
 import Data.Tree
 import Data.Tree.Util
+import Data.List(intercalate)
 
 import Angle
 import Geom
+
+import MyPrintf
 
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
@@ -23,12 +28,25 @@ data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tResName           :: !String
                        , tResId             :: !Int
                        , tAtId              :: !Int    }
+  deriving(Show)
 
 data Cartesian = Cartesian { cPos     :: !Vector3
                            , cAtName  :: !String
                            , cResName :: !String
                            , cAtId    :: !Int
                            , cResId   :: !Int     }
+
+showCartesian :: Cartesian -> String
+showCartesian (Cartesian { cPos     = Vector3 x y z
+                         , cAtName  = atName
+                         , cResName = resName
+                         , cAtId    = atId
+                         , cResId   = resId         }) = s
+    where
+      Just s = printf "ATOM  %5d  %-3s%4s A %3d    %8.3f%8.3f%8.3f  1.00  0.00" atId atName resName resId x y z
+
+showCartesianTopo :: CartesianTopo -> String
+showCartesianTopo = intercalate "\n" . map showCartesian . Data.Tree.flatten
 
 type TorsionTopo   = Tree Torsion
 
@@ -78,15 +96,17 @@ proteinBackboneT resName resId psi phi omega sc tail =
 onlyProteinBackboneT :: String -> Int -> Double -> Double -> Double -> [Tree Torsion] -> Tree Torsion
 onlyProteinBackboneT resName resId psi phi omega tail = proteinBackboneT resName resId psi phi omega (const []) tail
 
-constructBackbone :: [Char] -> [(Double, Double, Double)] -> Tree Torsion
-constructBackbone seq dihedrals = head $ constructBackbone' seq dihedrals []
+constructBackbone :: [(String, Double, Double, Double)] -> Tree Torsion
+constructBackbone recs = head $ constructBackbone' recs []
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 
-constructBackbone' :: [Char] -> [(Double, Double, Double)] -> [Tree Torsion] -> [Tree Torsion]
-constructBackbone' seq dihedrals = foldr1 (.) $ zipWith3 buildResidue seq [1..] dihedrals
+constructBackbone' :: [(String, Double, Double, Double)] ->
+                        [Tree Torsion] ->
+                        [Tree Torsion]
+constructBackbone' recs = foldr1 (.) $ zipWith buildResidue recs [1..]
   where
     -- TODO: convert resName
-    buildResidue resName resId (psi, phi, omega) tail = [onlyProteinBackboneT [resName] resId psi phi omega tail]
+    buildResidue (resName, psi, phi, omega) resId tail = [onlyProteinBackboneT resName resId psi phi omega tail]
 
 -- TODO: computing Cartesian chain from Torsion
 -- TODO: printing Torsion as Silent
@@ -122,11 +142,11 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     dihe = degree2radian $ tDihedral torsion - pi -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
     nextDir  = vnormalise $ ez |* (-cos ang) +sin ang *| (ey |* cos dihe + ex |* sin dihe)
-    cart     = xferC torsion 
+    cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
 computePositions :: TorsionTopo -> CartesianTopo
-computePositions topo = descending computeNextCartesian initialVectors topo
+computePositions = descending computeNextCartesian initialVectors
   where
     initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
 
@@ -139,4 +159,6 @@ reconstructTopology = undefined
 
 -- TODO: move unit tests to this module
 -- TODO: add silent2PDB script
+
+_test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
 
