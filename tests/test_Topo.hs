@@ -24,5 +24,9 @@ exampleCoords = [Vector3  0.000   0.000   0.000 ,
 
 tree = constructBackbone exampleTorsions
 
-main = do print $ tree
-          putStrLn $ showCartesianTopo $ computePositions tree
+main = do return () --print $ tree
+          let cartopo = computePositions tree
+          putStrLn $ showCartesianTopo $ cartopo
+          let retors = computeTorsions cartopo
+          print    $ backboneDihedrals $ retors
+          print    $ backbonePlanars   $ retors

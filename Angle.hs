@@ -18,7 +18,7 @@ anormalise angle | angle > 180 = angle - 360
 anormalise angle | angle < 180 = angle - 360
 anormalise angle               = angle
 
-vangle a b = radian2degree $ acos $ (a `vdot` (-b)) / vmag a / vmag b
+vangle a b = radian2degree $ acos $ (a `vdot` b) / vmag a / vmag b
 
 -- \varphi = \operatorname{atan2} \left( |\mathbf{b}_2| \mathbf{b}_1 \cdot [\mathbf{b}_2 \times \mathbf{b}_3], [\mathbf{b}_1 \times \mathbf{b}_2] \cdot [\mathbf{b}_2 \times \mathbf{b}_3] \right)
 vdihedral b_1 b_2 b_3 = radian2degree $

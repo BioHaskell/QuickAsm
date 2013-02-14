@@ -5,8 +5,12 @@ module Topo( Tree(..)
            , proteinBackboneT
            , constructBackbone
            , computePositions
+           , computeTorsions
            , showCartesian
            , showCartesianTopo
+           , backboneDihedrals
+           , backbonePlanars
+           , backbone
            ) where
 
 import System.IO
@@ -78,20 +82,26 @@ proteinBackboneT resName resId psi phi omega sc tail =
       ]
     ]
   where
-    at planar dihe bondLen name = Torsion { tPlanar   = planar
-                                          , tDihedral = dihe
-                                          , tBondLen  = bondLen
-                                          , tAtName   = name
-                                          , tAtId     = 0 -- to be filled by another method
-                                          , tResName  = resName
-                                          , tResId    = resId   }
     -- TODO: check that angles are not shifted
     -- 1.45:1.52:1.32
-    n  = at   116.2  omega 1.32 "N"
-    ca = at   111.2  psi   1.45 "CA"
-    c  = at   122.7  phi   1.52 "C"
-    o  = at (-120.5) omega 1.24 "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
+    [n, ca, c, o] = zipWith (atWithDihe resName resId) ["N", "CA", "C", "O"] [omega, psi, phi, omega] -- TODO: screwed, omega places NEXT "N" atom!!!
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
+
+{-# INLINE mkAt #-}
+atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dihe }
+mkAt "N"  = at   116.2  1.32  "N"
+mkAt "CA" = at   111.2  1.458 "CA"
+mkAt "C"  = at   122.7  1.52  "C"
+mkAt "O"  = at (-120.5) 1.24  "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
+
+-- Constructs an atom with given parameters as Torsion element.
+at planar bondLen name resName resId = Torsion { tPlanar   = planar
+                                               , tDihedral = 0.0 -- to be filled by another function
+                                               , tBondLen  = bondLen
+                                               , tAtName   = name
+                                               , tAtId     = 0   -- to be filled by another method
+                                               , tResName  = resName
+                                               , tResId    = resId   }
 
 onlyProteinBackboneT :: String -> Int -> Double -> Double -> Double -> [Tree Torsion] -> Tree Torsion
 onlyProteinBackboneT resName resId psi phi omega tail = proteinBackboneT resName resId psi phi omega (const []) tail
@@ -139,9 +149,9 @@ computeNextCartesian (prevDir, curDir, prevDihe, curPos) torsion =
     ex = vnormalise $ ey `vcross` ez
     ey = vnormalise $ prevDir `vperpend` ez
     ez = vnormalise $ curDir -- normalization unnecessary?
-    dihe = degree2radian $ prevDihe - pi -- due to reversed directionality of ey
+    dihe = degree2radian $ prevDihe -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
-    nextDir  = vnormalise $ ez |* (-cos ang) +sin ang *| (ey |* cos dihe + ex |* sin dihe)
+    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* cos dihe + ex |* sin dihe)
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
@@ -153,14 +163,34 @@ computePositions (Node a [Node b tail]) = Node newA [Node newB $ map subforest t
     newB = (xferC b) { cPos = bPos } 
     aPos = Vector3 0 0 0
     bPos = Vector3 1 0 0 |* tBondLen b
-    initialVectors = (Vector3 0 1 0, Vector3 0 0 1, 0.0, Vector3 0 0 0)
+    initialVectors = (Vector3 1 0 0, Vector3 0 0 1, 0.0, Vector3 0 0 0)
+
+computeNextTopo (bv1, bv2, lastPos) cartesian =
+    ((bv2, bv3, cPos cartesian), tors)
+  where
+    bv3 = cPos cartesian - lastPos
+    tors = (xferT cartesian) { tPlanar   = bv2 `vangle` (-bv3)
+                             , tDihedral = vdihedral bv1 bv2 bv3
+                             , tBondLen  = vmag bv3
+                             } -- TODO: add angles
 
 -- | Compute torsion angles from a Cartesian topology.
 computeTorsions :: CartesianTopo -> TorsionTopo
-computeTorsions = undefined
+computeTorsions topo = descending computeNextTopo initialInputs topo
+  where
+    (a:b:_)       = Data.Tree.flatten topo
+    bv            = cPos a - cPos b
+    initialInputs = (bv, bv, cPos a) -- something will be wrong for first two...
 
 -- | Take a list of atom records, and Cartesian topology of a chain.
 reconstructTopology = undefined
+
+backbone (Node a []    ) = [a]
+backbone (Node a (bb:_)) = a:backbone bb
+
+backbonePlanars   = tail . map tPlanar   . backbone
+
+backboneDihedrals = tail . map tDihedral . backbone
 
 -- TODO: move unit tests to this module
 -- TODO: add silent2PDB script
