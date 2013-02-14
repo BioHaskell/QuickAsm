@@ -129,26 +129,31 @@ printPDBAtom outh (Cartesian { cPos     = position
 
 -- | Takes two most recent consecutive bond vectors, and current position
 --   as a tuple, and a `Torsion` record to produce Cartesian position.
-computeNextCartesian :: (Vector3, Vector3, Vector3) ->
+computeNextCartesian :: (Vector3, Vector3, Double, Vector3) ->
                            Torsion ->
-                           ((Vector3, Vector3, Vector3), Cartesian)
-computeNextCartesian (prevDir, curDir, curPos) torsion =
-    ((curDir, nextDir, nextPos), cart)
+                           ((Vector3, Vector3, Double, Vector3), Cartesian)
+computeNextCartesian (prevDir, curDir, prevDihe, curPos) torsion =
+    ((curDir, nextDir, tDihedral torsion, nextPos), cart)
   where
     nextPos = curPos + tBondLen torsion *| nextDir
     ex = vnormalise $ ey `vcross` ez
     ey = vnormalise $ prevDir `vperpend` ez
     ez = vnormalise $ curDir -- normalization unnecessary?
-    dihe = degree2radian $ tDihedral torsion - pi -- due to reversed directionality of ey
+    dihe = degree2radian $ prevDihe - pi -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
     nextDir  = vnormalise $ ez |* (-cos ang) +sin ang *| (ey |* cos dihe + ex |* sin dihe)
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
 computePositions :: TorsionTopo -> CartesianTopo
-computePositions = descending computeNextCartesian initialVectors
+computePositions (Node a [Node b tail]) = Node newA [Node newB $ map subforest tail]
   where
-    initialVectors = (Vector3 0 1 0, Vector3 0 0 1, Vector3 0 0 0)
+    subforest = descending computeNextCartesian initialVectors
+    newA = (xferC a) { cPos = aPos } 
+    newB = (xferC b) { cPos = bPos } 
+    aPos = Vector3 0 0 0
+    bPos = Vector3 1 0 0 |* tBondLen b
+    initialVectors = (Vector3 0 1 0, Vector3 0 0 1, 0.0, Vector3 0 0 0)
 
 -- | Compute torsion angles from a Cartesian topology.
 computeTorsions :: CartesianTopo -> TorsionTopo
