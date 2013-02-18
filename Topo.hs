@@ -1,13 +1,17 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-module Topo( Tree(..)
-           , Torsion(..), Cartesian(..)
-           , xferC, xferT
+module Topo( Tree     (..)
+           , Torsion  (..)
+           , Cartesian(..)
+           , xferC
+           , xferT
            , proteinBackboneT
            , constructBackbone
+
            , computePositions
            , computeTorsions
            , showCartesian
            , showCartesianTopo
+
            , backboneDihedrals
            , backbonePlanars
            , backbone
@@ -103,7 +107,8 @@ at planar bondLen name resName resId = Torsion { tPlanar   = planar
                                                , tResName  = resName
                                                , tResId    = resId   }
 
-onlyProteinBackboneT :: String -> Int -> Double -> Double -> Double -> [Tree Torsion] -> Tree Torsion
+onlyProteinBackboneT :: String -> Int -> Double -> Double -> Double ->
+                          [Tree Torsion] -> Tree Torsion
 onlyProteinBackboneT resName resId psi phi omega tail = proteinBackboneT resName resId psi phi omega (const []) tail
 
 constructBackbone :: [(String, Double, Double, Double)] -> Tree Torsion
@@ -151,7 +156,7 @@ computeNextCartesian (prevDir, curDir, prevDihe, curPos) torsion =
     ez = vnormalise $ curDir -- normalization unnecessary?
     dihe = degree2radian $ prevDihe -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
-    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* cos dihe + ex |* sin dihe)
+    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* sin dihe)
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
