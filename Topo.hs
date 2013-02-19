@@ -78,8 +78,11 @@ xferT cart = Torsion { tPlanar   = 0
 
 -- | Creates protein backbone from residue name, identifier and torsion angles.
 --   Also accepts an optional argument for next residue in chain.
-proteinBackboneT :: String-> Int-> Double-> Double-> Double-> (Double -> [Tree Torsion]) -> [Tree Torsion]-> Tree Torsion
-proteinBackboneT resName resId psi phi omega sc tail =
+proteinBackboneT :: String -> Int -> -- residue name and number
+                      Double -> Double -> Double -> Double -> -- dihedral angles
+                      (Double -> [Tree Torsion]) -> -- sidechain generator (optional)
+                      [Tree Torsion] -> Tree Torsion
+proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
     Node n [
       Node ca [ -- TODO: add sidechain
         Node c $ tail ++ [Node o []] -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
@@ -88,7 +91,7 @@ proteinBackboneT resName resId psi phi omega sc tail =
   where
     -- TODO: check that angles are not shifted
     -- 1.45:1.52:1.32
-    [n, ca, c, o] = zipWith (atWithDihe resName resId) ["N", "CA", "C", "O"] [omega, psi, phi, omega] -- TODO: screwed, omega places NEXT "N" atom!!!
+    [n, ca, c, o] = zipWith (atWithDihe resName resId) ["N", "CA", "C", "O"] [psiPrev, omegaPrev, phi, psi] -- TODO: screwed, omega places NEXT "N" atom!!!
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
 {-# INLINE mkAt #-}
@@ -107,9 +110,10 @@ at planar bondLen name resName resId = Torsion { tPlanar   = planar
                                                , tResName  = resName
                                                , tResId    = resId   }
 
-onlyProteinBackboneT :: String -> Int -> Double -> Double -> Double ->
+onlyProteinBackboneT :: String -> Int ->
+                          Double -> Double -> Double -> Double ->
                           [Tree Torsion] -> Tree Torsion
-onlyProteinBackboneT resName resId psi phi omega tail = proteinBackboneT resName resId psi phi omega (const []) tail
+onlyProteinBackboneT resName resId psiPrev omegaPrev phi psi tail = proteinBackboneT resName resId psiPrev omegaPrev phi psi (const []) tail
 
 constructBackbone :: [(String, Double, Double, Double)] -> Tree Torsion
 constructBackbone recs = head $ constructBackbone' recs []
@@ -118,10 +122,13 @@ constructBackbone recs = head $ constructBackbone' recs []
 constructBackbone' :: [(String, Double, Double, Double)] ->
                         [Tree Torsion] ->
                         [Tree Torsion]
-constructBackbone' recs = foldr1 (.) $ zipWith buildResidue recs [1..]
+constructBackbone' recs = foldr1 (.) $ zipWith3 buildResidue prevRecs recs [1..]
   where
+    prevRecs = ("N-TER", 0.0, 0.0, 0.0):recs
     -- TODO: convert resName
-    buildResidue (resName, psi, phi, omega) resId tail = [onlyProteinBackboneT resName resId psi phi omega tail]
+    buildResidue (_,       phiPrev, psiPrev, omegaPrev)
+                 (resName, phi,     psi,     omega    )
+                 resId tail = [onlyProteinBackboneT resName resId psiPrev omegaPrev phi psi tail]
 
 -- TODO: computing Cartesian chain from Torsion
 -- TODO: printing Torsion as Silent
@@ -144,17 +151,18 @@ printPDBAtom outh (Cartesian { cPos     = position
 
 -- | Takes two most recent consecutive bond vectors, and current position
 --   as a tuple, and a `Torsion` record to produce Cartesian position.
-computeNextCartesian :: (Vector3, Vector3, Double, Vector3) ->
+computeNextCartesian :: (Vector3, Vector3, Vector3) ->
                            Torsion ->
-                           ((Vector3, Vector3, Double, Vector3), Cartesian)
-computeNextCartesian (prevDir, curDir, prevDihe, curPos) torsion =
-    ((curDir, nextDir, tDihedral torsion, nextPos), cart)
+                           ((Vector3, Vector3, Vector3)
+                           ,Cartesian)
+computeNextCartesian (prevDir, curDir, curPos) torsion =
+    ((curDir, nextDir, nextPos), cart)
   where
     nextPos = curPos + tBondLen torsion *| nextDir
     ex = vnormalise $ ey `vcross` ez
     ey = vnormalise $ prevDir `vperpend` ez
     ez = vnormalise $ curDir -- normalization unnecessary?
-    dihe = degree2radian $ prevDihe -- due to reversed directionality of ey
+    dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
     nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* sin dihe)
     cart     = (xferC torsion) { cPos = nextPos }  
@@ -168,9 +176,11 @@ computePositions (Node a [Node b tail]) = Node newA [Node newB $ map subforest t
     newB = (xferC b) { cPos = bPos } 
     aPos = Vector3 0 0 0
     bPos = Vector3 1 0 0 |* tBondLen b
-    initialVectors = (Vector3 1 0 0, Vector3 0 0 1, 0.0, Vector3 0 0 0)
+    initialVectors = (Vector3 1 0 0, Vector3 0 0 1, bPos)
 
-computeNextTopo (bv1, bv2, lastPos) cartesian =
+-- | Given two previous bond vectors, and last previous atom position,
+--   converts Cartesian atom into Torsion atom record.
+computeNextTorsion (bv1, bv2, lastPos) cartesian =
     ((bv2, bv3, cPos cartesian), tors)
   where
     bv3 = cPos cartesian - lastPos
@@ -181,11 +191,11 @@ computeNextTopo (bv1, bv2, lastPos) cartesian =
 
 -- | Compute torsion angles from a Cartesian topology.
 computeTorsions :: CartesianTopo -> TorsionTopo
-computeTorsions topo = descending computeNextTopo initialInputs topo
+computeTorsions topo = descending computeNextTorsion initialInputs topo
   where
     (a:b:_)       = Data.Tree.flatten topo
-    bv            = cPos a - cPos b
-    initialInputs = (bv, bv, cPos a) -- something will be wrong for first two...
+    bv            = cPos b - cPos a
+    initialInputs = (-bv, bv, cPos b) -- something will be wrong for first two...
 
 -- | Take a list of atom records, and Cartesian topology of a chain.
 reconstructTopology = undefined

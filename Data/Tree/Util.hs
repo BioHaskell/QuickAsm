@@ -11,3 +11,9 @@ descending f acc (Node rec forest) = Node rec' $ map (descending f acc') $ fores
   where
     (acc', rec') = f acc rec
 
+-- | Descends a tree, inheriting accumulator, and allowing deeper inspection of subtrees (not just labels!)
+transforming ::  (a -> Tree b -> (a, c)) -> a -> Tree b -> Tree c
+transforming f acc node@(Node rec forest) = Node rec' $ map (transforming f acc') $ forest
+  where
+    (acc', rec') = f acc node
+
