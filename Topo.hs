@@ -30,6 +30,7 @@ import Geom
 
 import MyPrintf
 
+-- | Topology node record with torsion angles.
 data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tBondLen           :: !Double
                        , tAtName            :: !String
@@ -38,12 +39,14 @@ data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tAtId              :: !Int    }
   deriving(Show)
 
+-- | Topology node record with cartesian coordinates.
 data Cartesian = Cartesian { cPos     :: !Vector3
                            , cAtName  :: !String
                            , cResName :: !String
                            , cAtId    :: !Int
                            , cResId   :: !Int     }
 
+-- | Shows Cartesian record as PDB `ATOM` coordinate record.
 showCartesian :: Cartesian -> String
 showCartesian (Cartesian { cPos     = Vector3 x y z
                          , cAtName  = atName
@@ -53,6 +56,7 @@ showCartesian (Cartesian { cPos     = Vector3 x y z
     where
       Just s = printf "ATOM  %5d  %-3s%4s A %3d    %8.3f%8.3f%8.3f  1.00  0.00" atId atName resName resId x y z
 
+-- | Shows Cartesian topology as PDB `ATOM` coordinate records.
 showCartesianTopo :: CartesianTopo -> String
 showCartesianTopo = intercalate "\n" . map showCartesian . Data.Tree.flatten
 
@@ -60,6 +64,7 @@ type TorsionTopo   = Tree Torsion
 
 type CartesianTopo = Tree Cartesian
 
+-- | Transfer common attributes to Cartesian record from Torsion record.
 xferC ::  Torsion -> Cartesian
 xferC tors = Cartesian { cPos     = 0
                        , cAtName  = tAtName  tors
@@ -67,6 +72,7 @@ xferC tors = Cartesian { cPos     = 0
                        , cAtId    = tAtId    tors
                        , cResId   = tResId   tors }
 
+-- | Transfer common attributes to Torsion record from Cartesian record.
 xferT ::  Cartesian -> Torsion
 xferT cart = Torsion { tPlanar   = 0
                      , tDihedral = 0
@@ -94,14 +100,18 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
     [n, ca, c, o] = zipWith (atWithDihe resName resId) ["N", "CA", "C", "O"] [psiPrev, omegaPrev, phi, psi] -- TODO: screwed, omega places NEXT "N" atom!!!
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
-{-# INLINE mkAt #-}
+-- | Makes a Torsion record with the given dihedral.
 atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dihe }
+
+{-# INLINE mkAt #-}
+-- | Make a Torsion "ATOM" record for protein backbone atom
+--   with idealized planar angle, and bond length.
 mkAt "N"  = at   116.2  1.32  "N"
 mkAt "CA" = at   111.2  1.458 "CA"
 mkAt "C"  = at   122.7  1.52  "C"
 mkAt "O"  = at (-120.5) 1.24  "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
 
--- Constructs an atom with given parameters as Torsion element.
+-- | Constructs an atom with given parameters as Torsion element.
 at planar bondLen name resName resId = Torsion { tPlanar   = planar
                                                , tDihedral = 0.0 -- to be filled by another function
                                                , tBondLen  = bondLen
@@ -110,11 +120,14 @@ at planar bondLen name resName resId = Torsion { tPlanar   = planar
                                                , tResName  = resName
                                                , tResId    = resId   }
 
+-- | Takes arguments and constructs another node of protein backbone.
 onlyProteinBackboneT :: String -> Int ->
                           Double -> Double -> Double -> Double ->
                           [Tree Torsion] -> Tree Torsion
 onlyProteinBackboneT resName resId psiPrev omegaPrev phi psi tail = proteinBackboneT resName resId psiPrev omegaPrev phi psi (const []) tail
 
+-- | Construct a protein backbone from sequence of residue codes and angles:
+--   (residue name, phi, psi, omega) 
 constructBackbone :: [(String, Double, Double, Double)] -> Tree Torsion
 constructBackbone recs = head $ constructBackbone' recs []
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
@@ -200,11 +213,15 @@ computeTorsions topo = descending computeNextTorsion initialInputs topo
 -- | Take a list of atom records, and Cartesian topology of a chain.
 reconstructTopology = undefined
 
+-- | Returns a list of topology nodes along topology backbone
+--   (which contains only first elements of forest list.)
 backbone (Node a []    ) = [a]
 backbone (Node a (bb:_)) = a:backbone bb
 
+-- | Returns a list of planar angles along the topology backbone.
 backbonePlanars   = tail . map tPlanar   . backbone
 
+-- | Returns a list of dihedral angles along the topology backbone.
 backboneDihedrals = tail . map tDihedral . backbone
 
 -- TODO: move unit tests to this module
