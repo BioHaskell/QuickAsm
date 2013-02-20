@@ -14,14 +14,18 @@ exampleTorsions = [("GLY",    0.000, 177.618, 176.418),
 sourceTriples ((_, a, b, c):rs) = a:b:c:sourceTriples rs
 sourceTriples []                = []
 
-showFloatTriples :: (RealFloat f) => [f] -> String
-showFloatTriples = join '\n'. map (join ' ') . triples . map ffmt
-  where
-    join c = foldl1 $ join' c
-    join' c a b = a ++ c:b
+showVector (Vector3 x y z) = concatMap showFloat [x, y, z]
 
-ffmt :: (RealFloat f) => f -> String
-ffmt f = adjust 9 $ showFFloat (Just 3) f ""
+showVectors = join '\n' . map showVector
+
+showFloatTriples :: (RealFloat f) => [f] -> String
+showFloatTriples = join '\n'. map (join ' ') . triples . map showFloat
+
+join c = foldl1 $ join' c
+join' c a b = a ++ c:b
+
+showFloat :: (RealFloat f) => f -> String
+showFloat f = adjust 9 $ showFFloat (Just 3) f ""
   where
     adjust i l = iterate (' ':) l !! (i - length l)
 
@@ -88,3 +92,12 @@ main = do return () --print $ tree
           putStrLn $ showFloatTriples $ tail $ backboneDihedrals retors
           putStrLn   "Generated planar angles:"
           putStrLn $ showFloatTriples $ backbonePlanars   retors
+          putStrLn   "Source bond vectors:"
+          putStrLn $ showVectors $ bondVectors' exampleCoords
+          putStrLn   "Generated bond vectors:"
+          putStrLn $ showVectors $ bondVectors  cartopo
+
+bondVectors = bondVectors' . map cPos . backbone
+
+bondVectors' bb = zipWith (-) (tail bb) bb
+

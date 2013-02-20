@@ -60,8 +60,10 @@ showCartesian (Cartesian { cPos     = Vector3 x y z
 showCartesianTopo :: CartesianTopo -> String
 showCartesianTopo = intercalate "\n" . map showCartesian . Data.Tree.flatten
 
+-- | Molecule topology in torsion angles.
 type TorsionTopo   = Tree Torsion
 
+-- | Molecule topology in cartesian coordinates.
 type CartesianTopo = Tree Cartesian
 
 -- | Transfer common attributes to Cartesian record from Torsion record.
@@ -127,11 +129,14 @@ onlyProteinBackboneT :: String -> Int ->
 onlyProteinBackboneT resName resId psiPrev omegaPrev phi psi tail = proteinBackboneT resName resId psiPrev omegaPrev phi psi (const []) tail
 
 -- | Construct a protein backbone from sequence of residue codes and angles:
---   (residue name, phi, psi, omega) 
+--   (residue name, phi, psi, omega).
 constructBackbone :: [(String, Double, Double, Double)] -> Tree Torsion
 constructBackbone recs = head $ constructBackbone' recs []
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 
+-- | Build another node of a protein backbone from sequence of residue
+--   codes and angles, with a given continuation of the backbone as second
+--   parameter.
 constructBackbone' :: [(String, Double, Double, Double)] ->
                         [Tree Torsion] ->
                         [Tree Torsion]
@@ -177,7 +182,7 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     ez = vnormalise $ curDir -- normalization unnecessary?
     dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
-    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* sin dihe)
+    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
