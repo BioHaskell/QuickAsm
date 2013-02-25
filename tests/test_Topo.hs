@@ -71,6 +71,9 @@ exampleDecoy = [("N",  "VAL",   1, 0.0,    0.0,    0.000),
                 ("C",  "THR",   8, 19.363, 15.204, 3.263),
                 ("O",  "THR",   8, 19.713, 15.151, 4.442)]
 
+backboneAtomNamesT = map tAtName . backbone
+backboneAtomNamesC = map cAtName . backbone
+
 every :: Int -> [a] -> [a] 
 every n l = head l:drop n l
 
@@ -99,6 +102,8 @@ main = do return () --print $ tree
           putStrLn $ showFloatTriples $ backbonePlanars retors
           putStrLn   "Original  planar angles:"
           putStrLn $ showFloatTriples $ backbonePlanars $ computeTorsions origCoord
+          putStrLn $ "Generated backbone atoms:" ++ show (backboneAtomNamesT retors)
+          putStrLn $ "Original  backbone atoms:" ++ show (backboneAtomNamesC origCoord)
           putStrLn   "Source bond vectors:"
           putStrLn $ showVectors $ bondVectors' exampleCoords
           putStrLn   "Generated bond vectors:"
