@@ -6,6 +6,7 @@ module Topo( Tree     (..)
            , xferT
            , proteinBackboneT
            , constructBackbone
+           , constructCartesianBackbone
 
            , computePositions
            , computeTorsions
@@ -102,6 +103,33 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
     [n, ca, c, o] = zipWith (atWithDihe resName resId) ["N", "CA", "C", "O"] [psiPrev, omegaPrev, phi, psi] -- TODO: screwed, omega places NEXT "N" atom!!!
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
+proteinBackboneC resName resId coords scGen tail =
+    Node n [
+      Node ca ([ -- TODO: add sidechain
+        Node c $ tail ++ [Node o []] -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
+      ] ++ scGen otherCoords) -- TODO: check that scGen eaten all coords?
+    ]
+  where
+    (bbCoords, otherCoords) = splitAt 4 coords
+    [n, ca, c, o] = zipWith (atWithCoord resName resId)
+                            ["N", "CA", "C", "O"]
+                            (take 4 coords)-- TODO: screwed, omega places NEXT "N" atom!!!
+
+constructCartesianBackbone :: [(String, [Vector3])] -> CartesianTopo
+constructCartesianBackbone recs = head $ constructCartesianBackbone' recs []
+  where
+    constructCartesianBackbone' :: [(String, [Vector3])] -> [CartesianTopo] -> [CartesianTopo]
+    constructCartesianBackbone' recs = foldr1 (.) $ zipWith buildResidue recs [1..]
+    buildResidue (resName, coords) resId tail =
+      [proteinBackboneC resName resId coords (\[] -> []) tail]
+
+-- | Makes a Cartesian record with the given dihedral
+atWithCoord resName resId atName coord = Cartesian { cPos     = coord
+                                                   , cAtName  = atName
+                                                   , cResName = resName
+                                                   , cAtId    = 0 -- to be filled by another function
+                                                   , cResId   = resId   }
+
 -- | Makes a Torsion record with the given dihedral.
 atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dihe }
 
@@ -130,7 +158,7 @@ onlyProteinBackboneT resName resId psiPrev omegaPrev phi psi tail = proteinBackb
 
 -- | Construct a protein backbone from sequence of residue codes and angles:
 --   (residue name, phi, psi, omega).
-constructBackbone :: [(String, Double, Double, Double)] -> Tree Torsion
+constructBackbone :: [(String, Double, Double, Double)] -> TorsionTopo
 constructBackbone recs = head $ constructBackbone' recs []
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 
@@ -194,7 +222,7 @@ computePositions (Node a [Node b tail]) = Node newA [Node newB $ map subforest t
     newB = (xferC b) { cPos = bPos } 
     aPos = Vector3 0 0 0
     bPos = Vector3 1 0 0 |* tBondLen b
-    initialVectors = (Vector3 1 0 0, Vector3 0 0 1, bPos)
+    initialVectors = (Vector3 0 (-1) 0, Vector3 1 0 0, bPos)
 
 -- | Given two previous bond vectors, and last previous atom position,
 --   converts Cartesian atom into Torsion atom record.

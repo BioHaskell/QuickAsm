@@ -2,6 +2,7 @@
 module Main where
 
 import Data.Vector.V3
+import Data.Vector.Class
 import Topo
 import Numeric(showFFloat)
 
@@ -32,6 +33,10 @@ showFloat f = adjust 9 $ showFFloat (Just 3) f ""
 triples (a:b:c:ds) = [a, b, c]:triples ds
 triples []         = []
 triples ds         = [ds] -- for 1 or 2 remaining
+
+quadruples (a:b:c:d:es) = [a, b, c, d]:quadruples es
+quadruples []           = []
+quadruples es           = [es] -- for 1 or 2 remaining
 
 exampleDecoy = [("N",  "VAL",   1, 0.0,    0.0,    0.000),
                 ("CA", "VAL",   1, 1.458,  0.0,    0.000),
@@ -66,20 +71,20 @@ exampleDecoy = [("N",  "VAL",   1, 0.0,    0.0,    0.000),
                 ("C",  "THR",   8, 19.363, 15.204, 3.263),
                 ("O",  "THR",   8, 19.713, 15.151, 4.442)]
 
-exampleCoords = [Vector3  0.000   0.000   0.000 ,
-                 Vector3  1.458   0.000   0.000 ,
-                 Vector3  2.009   1.420   0.000 ,
-                 Vector3  3.332   1.536   0.050 ,
-                 Vector3  3.990   2.835 (-0.022),
-                 Vector3  5.069   2.847 (-1.097),
-                 Vector3  5.113   3.925 (-1.872),
-                 Vector3  6.122   4.080 (-2.913),
-                 Vector3  7.224   5.036 (-2.474),
-                 Vector3  8.357   4.476 (-2.064),
-                 Vector3  9.494   5.279 (-1.630),
-                 Vector3 10.535   5.403 (-2.735)]
+every :: Int -> [a] -> [a] 
+every n l = head l:drop n l
 
-tree = constructBackbone exampleTorsions
+exampleDecoy' = zipWith (,) (map getResName $ every 4 exampleDecoy) (quadruples exampleCoords)
+  where
+    getResName (_, resName, _, _, _, _) = resName
+
+exampleCoords = map mkVec exampleDecoy
+  where
+    mkVec (at, res, num, x, y, z) = Vector3 x y z
+
+tree      = constructBackbone exampleTorsions
+
+origCoord = constructCartesianBackbone exampleDecoy'
 
 main = do return () --print $ tree
           let cartopo = computePositions tree
@@ -91,13 +96,23 @@ main = do return () --print $ tree
           --print $ triples $ backboneDihedrals retors
           putStrLn $ showFloatTriples $ tail $ backboneDihedrals retors
           putStrLn   "Generated planar angles:"
-          putStrLn $ showFloatTriples $ backbonePlanars   retors
+          putStrLn $ showFloatTriples $ backbonePlanars retors
+          putStrLn   "Original  planar angles:"
+          putStrLn $ showFloatTriples $ backbonePlanars $ computeTorsions origCoord
           putStrLn   "Source bond vectors:"
           putStrLn $ showVectors $ bondVectors' exampleCoords
           putStrLn   "Generated bond vectors:"
-          putStrLn $ showVectors $ bondVectors  cartopo
+          putStrLn $ showVectors $ bondDirs  cartopo
+          putStrLn   "Source bond directions:"
+          putStrLn $ showVectors $ bondVectors' exampleCoords
+          putStrLn   "Generated bond directions:"
+          putStrLn $ showVectors $ bondDirs  cartopo
 
-bondVectors = bondVectors' . map cPos . backbone
+vnorm v = v |* recip (vmag v)
+
+bondDirs        = map vnormalise . bondVectors
+
+bondVectors     = bondVectors' . map cPos . backbone
 
 bondVectors' bb = zipWith (-) (tail bb) bb
 
