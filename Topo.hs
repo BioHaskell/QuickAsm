@@ -100,7 +100,9 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
   where
     -- TODO: check that angles are not shifted
     -- 1.45:1.52:1.32
-    [n, ca, c, o] = zipWith (atWithDihe resName resId) ["N", "CA", "C", "O"] [psiPrev, omegaPrev, phi, psi] -- TODO: screwed, omega places NEXT "N" atom!!!
+    [n, ca, c, o] = zipWith (atWithDihe resName resId)
+                            ["N", "CA", "C", "O"]
+                            [psiPrev, omegaPrev, phi, psi] -- TODO: screwed, omega places NEXT "N" atom!!!
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
 proteinBackboneC resName resId coords scGen tail =
@@ -137,8 +139,8 @@ atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dih
 -- | Make a Torsion "ATOM" record for protein backbone atom
 --   with idealized planar angle, and bond length.
 mkAt "N"  = at   116.2  1.32  "N"
-mkAt "CA" = at   111.2  1.458 "CA"
-mkAt "C"  = at   122.7  1.52  "C"
+mkAt "CA" = at   122.7  1.458 "CA"
+mkAt "C"  = at   111.2  1.52  "C"
 mkAt "O"  = at (-120.5) 1.24  "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
 
 -- | Constructs an atom with given parameters as Torsion element.

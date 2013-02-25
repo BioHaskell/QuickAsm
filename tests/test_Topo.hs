@@ -107,9 +107,9 @@ main = do return () --print $ tree
           putStrLn   "Source bond vectors:"
           putStrLn $ showVectors $ bondVectors' exampleCoords
           putStrLn   "Generated bond vectors:"
-          putStrLn $ showVectors $ bondDirs  cartopo
+          putStrLn $ showVectors $ bondVectors  cartopo
           putStrLn   "Source bond directions:"
-          putStrLn $ showVectors $ bondVectors' exampleCoords
+          putStrLn $ showVectors $ map vnormalise $ bondVectors' exampleCoords
           putStrLn   "Generated bond directions:"
           putStrLn $ showVectors $ bondDirs  cartopo
 
