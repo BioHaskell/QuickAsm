@@ -211,12 +211,12 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
   where
     nextPos = curPos + tBondLen torsion *| nextDir
     ex = vnormalise $ ey `vcross` ez
-    ey = vnormalise $ (-prevDir) `vperpend` ez
-    ez = vnormalise $ (-curDir) -- normalization unnecessary?
+    ey = vnormalise $ (prevDir) `vperpend` ez
+    ez = vnormalise $ (curDir) -- normalization unnecessary?
     dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
     --nextDir  = vnormalise $ ez |* (-cos ang) + (ey |* (-cos dihe) + ex |* (sin dihe))
-    nextDir  = vnormalise $ ez |* (cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
+    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
