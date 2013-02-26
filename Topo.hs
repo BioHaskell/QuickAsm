@@ -138,9 +138,9 @@ atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dih
 {-# INLINE mkAt #-}
 -- | Make a Torsion "ATOM" record for protein backbone atom
 --   with idealized planar angle, and bond length.
-mkAt "N"  = at   116.2  1.32  "N"
+mkAt "N"  = at   116.2  1.328 "N"
 mkAt "CA" = at   122.7  1.458 "CA"
-mkAt "C"  = at   111.2  1.52  "C"
+mkAt "C"  = at   111.2  1.523 "C"
 mkAt "O"  = at (-120.5) 1.24  "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
 
 -- | Constructs an atom with given parameters as Torsion element.
@@ -212,7 +212,8 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
     ez = vnormalise $ curDir -- normalization unnecessary?
     dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
-    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
+    nextDir  = vnormalise $ ez |* (-cos ang) + (ey |* (-cos dihe) + ex |* (sin dihe))
+    --nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.

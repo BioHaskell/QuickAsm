@@ -22,13 +22,17 @@ showVectors = join '\n' . map showVector
 showFloatTriples :: (RealFloat f) => [f] -> String
 showFloatTriples = join '\n'. map (join ' ') . triples . map showFloat
 
-join c = foldl1 $ join' c
-join' c a b = a ++ c:b
+
+join c = foldl1 $ joiner c
+joiner c a b = a ++ c:b
 
 showFloat :: (RealFloat f) => f -> String
 showFloat f = adjust 9 $ showFFloat (Just 3) f ""
   where
     adjust i l = iterate (' ':) l !! (i - length l)
+
+showFloats :: (RealFloat f) => [f] -> String
+showFloats l = join ' ' $ map showFloat l
 
 triples (a:b:c:ds) = [a, b, c]:triples ds
 triples []         = []
@@ -112,6 +116,10 @@ main = do return () --print $ tree
           putStrLn $ showVectors $ map vnormalise $ bondVectors' exampleCoords
           putStrLn   "Generated bond directions:"
           putStrLn $ showVectors $ bondDirs  cartopo
+          putStrLn   "Source bond lengths:"
+          putStrLn $ showFloats $ bondLengths origCoord
+          putStrLn   "Generated bond lengths:"
+          putStrLn $ showFloats $ bondLengths cartopo
 
 vnorm v = v |* recip (vmag v)
 
@@ -120,4 +128,6 @@ bondDirs        = map vnormalise . bondVectors
 bondVectors     = bondVectors' . map cPos . backbone
 
 bondVectors' bb = zipWith (-) (tail bb) bb
+
+bondLengths     = map vmag . bondVectors
 
