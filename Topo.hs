@@ -208,7 +208,7 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
   where
     nextPos = curPos + tBondLen torsion *| nextDir
     ex = vnormalise $ ey `vcross` ez
-    ey = vnormalise $ prevDir `vperpend` ez
+    ey = vnormalise $ (prevDir) `vperpend` ez
     ez = vnormalise $ curDir -- normalization unnecessary?
     dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
@@ -224,7 +224,7 @@ computePositions (Node a [Node b tail]) = Node newA [Node newB $ map subforest t
     newB = (xferC b) { cPos = bPos } 
     aPos = Vector3 0 0 0
     bPos = Vector3 1 0 0 |* tBondLen b
-    initialVectors = (Vector3 0 (-1) 0, Vector3 1 0 0, bPos)
+    initialVectors = (Vector3 0 1 0, Vector3 1 0 0, bPos)
 
 -- | Given two previous bond vectors, and last previous atom position,
 --   converts Cartesian atom into Torsion atom record.
