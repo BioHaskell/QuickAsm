@@ -1,7 +1,9 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-module Topo( Tree     (..)
-           , Torsion  (..)
-           , Cartesian(..)
+module Topo( Tree         (..)
+           , Torsion      (..)
+           , Cartesian    (..)
+           , TorsionTopo  (..)
+           , CartesianTopo(..)
            , xferC
            , xferT
            , proteinBackboneT
