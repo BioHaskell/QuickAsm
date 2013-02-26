@@ -20,11 +20,14 @@ module Topo( Tree     (..)
 
 import System.IO
 
+import Prelude hiding (mapM)
 import Data.Vector.V3
 import Data.Vector.Class
 import Data.Tree
 import Data.Tree.Util
+import Data.Traversable(mapM)
 import Data.List(intercalate)
+import Control.Monad.State(State, get, modify, evalState)
 
 import Angle
 import Geom
@@ -208,12 +211,12 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
   where
     nextPos = curPos + tBondLen torsion *| nextDir
     ex = vnormalise $ ey `vcross` ez
-    ey = vnormalise $ (prevDir) `vperpend` ez
-    ez = vnormalise $ curDir -- normalization unnecessary?
+    ey = vnormalise $ (-prevDir) `vperpend` ez
+    ez = vnormalise $ (-curDir) -- normalization unnecessary?
     dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
-    nextDir  = vnormalise $ ez |* (-cos ang) + (ey |* (-cos dihe) + ex |* (sin dihe))
-    --nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
+    --nextDir  = vnormalise $ ez |* (-cos ang) + (ey |* (-cos dihe) + ex |* (sin dihe))
+    nextDir  = vnormalise $ ez |* (cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.
@@ -262,6 +265,16 @@ backboneDihedrals = tail . map tDihedral . backbone
 
 -- TODO: move unit tests to this module
 -- TODO: add silent2PDB script
+
+renumberAtomsWith :: (Num b) => (a -> b -> a) -> Tree a -> Tree a
+renumberAtomsWith setter t = evalState (mapM renum t) 1
+  where
+    renum a = do i <- get
+                 modify (+1)
+                 return $ a `setter` i
+
+renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
+renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
 _test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
 
