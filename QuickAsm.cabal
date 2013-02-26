@@ -6,8 +6,8 @@ package-url:         http://hackage.haskell.org/package/QuickAsm
 synopsis:            Quick assembly of fragments using NMR restraints.
 description:         Toy implementation
 category:            Bioinformatics 
-license:             BSD3
-license-file:        LICENSE
+--license:             BSD3
+--license-file:        LICENSE
 
 author:              Michal J. Gajda
 copyright:           Copyright by Michal J. Gajda '2013
@@ -25,7 +25,7 @@ source-repository head
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
-  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate
+  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl
   exposed-modules:  Topo
   exposed:          True
 
