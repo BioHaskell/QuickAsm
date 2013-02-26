@@ -21,7 +21,7 @@ data-files:          README
 
 source-repository head
   type:     git
-  location: git://github.com:mgajda/hpdb.git
+  location: git://github.com:mgajda/quickasm.git
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
