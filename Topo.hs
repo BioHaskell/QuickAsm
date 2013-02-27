@@ -40,6 +40,7 @@ import Rosetta.Silent
 import Fasta(fastacode2resname)
 import Angle
 import Geom
+import IdealGeomParams(idealGeom)
 
 import MyPrintf
 
@@ -148,12 +149,9 @@ atWithCoord resName resId atName coord = Cartesian { cPos     = coord
 atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dihe }
 
 {-# INLINE mkAt #-}
--- | Make a Torsion "ATOM" record for protein backbone atom
---   with idealized planar angle, and bond length.
-mkAt "N"  = at   116.2  1.328 "N"
-mkAt "CA" = at   122.7  1.458 "CA"
-mkAt "C"  = at   111.2  1.523 "C"
-mkAt "O"  = at (-120.5) 1.24  "N"  -- TODO: check that O is indeed on the same plane as N (so it shares dihedral angle.)
+mkAt atName = at angle bondLen atName
+  where
+    (angle, bondLen) = idealGeom atName
 
 -- | Constructs an atom with given parameters as Torsion element.
 at planar bondLen name resName resId = Torsion { tPlanar   = planar
