@@ -1,4 +1,4 @@
-module Fasta(fastacode2resname) where
+module Util.Fasta(fastacode2resname) where
 
 import Data.Map as Map
 
