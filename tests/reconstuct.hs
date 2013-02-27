@@ -9,8 +9,7 @@ import Topo
 import Fasta(fastacode2resname)
 import Data.Tree(flatten)
 
-model2topo :: SilentModel -> CartesianTopo
-model2topo = computePositions . constructBackbone . prepare
+silentModel2TorsionTopo = constructBackbone . prepare
   where
     prepare mdl = zipWith extractAngles
                     (BS.unpack $ fastaSeq mdl)
@@ -20,10 +19,12 @@ model2topo = computePositions . constructBackbone . prepare
                                    , psi   silentRec
                                    , omega silentRec        )
 
+
+model2topo :: SilentModel -> CartesianTopo
+model2topo = computePositions . silentModel2TorsionTopo
+
 -- TODO: optional trailing arguments - extract only given decoys
 main = do [silentInputFilename, pdbOutputFilename] <- getArgs
           [mdl] <- processSilent $ BS.pack silentInputFilename
-          let topo = model2topo mdl
-/bin/bash: :wq: command not found
-          return ()
+          putStrLn $ showCartesianTopo $ model2topo mdl
 
