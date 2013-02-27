@@ -8,3 +8,5 @@ if [ -r test.pdb ]; then
         examples/reconstruct/test.pml
 fi
 
+runghc scripts/reconstructBest.hs examples/reconstruct/default.out newDecoy.pdb
+
