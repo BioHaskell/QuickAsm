@@ -18,6 +18,9 @@ module Topo( Tree         (..)
            , backboneDihedrals
            , backbonePlanars
            , backbone
+
+           -- conversions from ROSETTA input
+           , silentModel2TorsionTopo
            ) where
 
 import System.IO
@@ -30,7 +33,11 @@ import Data.Tree.Util
 import Data.Traversable(mapM)
 import Data.List(intercalate)
 import Control.Monad.State(State, get, modify, evalState)
+import qualified Data.ByteString.Char8 as BS
 
+import Rosetta.Silent
+
+import Fasta(fastacode2resname)
 import Angle
 import Geom
 
@@ -279,4 +286,15 @@ renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
 renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
 _test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
+
+silentModel2TorsionTopo = constructBackbone . prepare
+  where
+    prepare mdl = zipWith extractInput
+                    (BS.unpack $ fastaSeq mdl)
+                    (residues mdl)
+    extractInput code silentRec = ( fastacode2resname code
+                                  , phi   silentRec
+                                  , psi   silentRec
+                                  , omega silentRec        )
+
 
