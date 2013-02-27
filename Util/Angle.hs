@@ -1,8 +1,11 @@
-module Angle( radian2degree
-            , degree2radian
-            , anormalise   
-            , vangle
-            , vdihedral     ) where
+module Util.Angle( radian2degree
+                 , degree2radian
+                 , anormalise   
+                 , vangle
+                 , vdihedral     ) where
+
+-- | Most of this should go to standard libraries, possibly AC-Vector
+--   Particularly vangle, vdihedral
 
 import Data.Vector.Class(vdot, vmag)
 import Data.Vector.V3   (vcross)

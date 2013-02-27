@@ -38,8 +38,8 @@ import qualified Data.ByteString.Char8 as BS
 import Rosetta.Silent
 
 import Fasta(fastacode2resname)
-import Angle
-import Geom
+import Util.Angle
+import Util.Geom
 import IdealGeomParams(idealGeom)
 
 import MyPrintf

@@ -1,10 +1,11 @@
-module Geom(vperpend, vproj) where
+module Util.Geom(vperpend, vproj) where
+
+-- TODO: this should go vector library?
 
 import Data.Vector.V3
 import Data.Vector.Class
 
 -- ^ Module with methods dealing exclusively with vector and angle geometry
-import Angle
 
 -- NOTE: I have tried to submit this as a patch to AC-Vector...
 -- If AC-Vector doesn't become compatible with Tensor (which is basis of OpenGL)
