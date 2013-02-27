@@ -18,9 +18,10 @@ anormalise angle | angle > 180 = angle - 360
 anormalise angle | angle < 180 = angle - 360
 anormalise angle               = angle
 
+-- | Computes a planar angle between a pair of vectors.
 vangle a b = radian2degree $ acos $ (a `vdot` b) / vmag a / vmag b
 
--- \varphi = \operatorname{atan2} \left( |\mathbf{b}_2| \mathbf{b}_1 \cdot [\mathbf{b}_2 \times \mathbf{b}_3], [\mathbf{b}_1 \times \mathbf{b}_2] \cdot [\mathbf{b}_2 \times \mathbf{b}_3] \right)
+-- | Computes dihedral angle of three vectors. Middle vector is the axis.
 vdihedral b_1 b_2 b_3 = radian2degree $
                                 atan2 (vmag b_2 *    (b_1  `vdot` (b_2 `vcross` b_3)))
                                       ((b_1 `vcross`  b_2) `vdot` (b_2 `vcross` b_3))
