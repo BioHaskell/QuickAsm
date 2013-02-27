@@ -40,9 +40,10 @@ import Rosetta.Silent
 import Util.Fasta(fastacode2resname)
 import Util.Angle
 import Util.Geom
+import Util.MyPrintf
+
 import IdealGeomParams(idealGeom)
 
-import MyPrintf
 
 -- | Topology node record with torsion angles.
 data Torsion = Torsion { tPlanar, tDihedral :: !Double

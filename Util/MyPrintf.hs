@@ -16,7 +16,7 @@
 
 {-# Language CPP #-}
 
-module MyPrintf(
+module Util.MyPrintf(
    printf, hPrintf,
    PrintfType, HPrintfType, PrintfArg, IsChar
 ) where
