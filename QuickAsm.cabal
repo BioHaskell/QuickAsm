@@ -26,7 +26,27 @@ source-repository head
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
   build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5
-  exposed-modules:  Topo
---  other-modules:    IdealGeom, Util.Fasta, Util.Angle, Util.Geom, Score.RDC, Score.DistanceRestraints, Score.Steric
+  exposed-modules:  Topo,
+                    Score.RDC, Score.DistanceRestraints, Score.Steric,
+                    AtomParams
+  other-modules:    IdealGeomParams,
+                    Util.Fasta, Util.Angle, Util.Geom, Util.MyPrintf,
+                    Data.Tree.Util
   exposed:          True
+
+Executable          checkSteric
+  build-depends:    QuickAsm, base, hRosetta, bytestring, Octree >= 0.5, containers
+  Hs-Source-Dirs:   scripts
+  main-is:          checkSteric.hs
+
+Executable          reconstructBest
+  build-depends:    QuickAsm, base, hRosetta, bytestring
+  Hs-Source-Dirs:   scripts
+  main-is:          reconstructBest.hs
+
+Executable          reconstruct
+  build-depends:    QuickAsm, base, hRosetta, bytestring
+  Hs-Source-Dirs:   scripts
+  main-is:          reconstruct.hs
+
 
