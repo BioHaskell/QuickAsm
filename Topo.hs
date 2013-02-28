@@ -65,6 +65,9 @@ data Cartesian = Cartesian { cPos     :: !Vector3
                            , cAtId    :: !Int
                            , cResId   :: !Int     }
 
+instance Show Cartesian where
+  show = showCartesian
+
 -- | Shows Cartesian record as PDB `ATOM` coordinate record.
 showCartesian :: Cartesian -> String
 showCartesian (Cartesian { cPos     = Vector3 x y z
@@ -292,11 +295,12 @@ renumberAtomsWith setter t = evalState (mapM renum t) 1
                  return $ a `setter` i
 
 renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
+
 renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
 _test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
 
-silentModel2TorsionTopo = constructBackbone . prepare
+silentModel2TorsionTopo = renumberAtomsT . constructBackbone . prepare
   where
     prepare mdl = zipWith extractInput
                     (BS.unpack $ fastaSeq mdl)
