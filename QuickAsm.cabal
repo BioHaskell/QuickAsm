@@ -4,7 +4,7 @@ stability:           alpha
 homepage:            https://github.com/mgajda/QuickAsm
 package-url:         http://hackage.haskell.org/package/QuickAsm
 synopsis:            Quick assembly of fragments using NMR restraints.
-description:         Toy implementation
+description:         Toy implementation of fragment assembly.
 category:            Bioinformatics 
 --license:             BSD3
 --license-file:        LICENSE
@@ -25,8 +25,8 @@ source-repository head
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
-  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring
+  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5
   exposed-modules:  Topo
---  other-modules:    IdealGeom, Fasta, Angle, Geom
+--  other-modules:    IdealGeom, Util.Fasta, Util.Angle, Util.Geom, Score.RDC, Score.DistanceRestraints, Score.Steric
   exposed:          True
 

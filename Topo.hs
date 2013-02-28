@@ -4,6 +4,10 @@ module Topo( Tree         (..)
            , Cartesian    (..)
            , TorsionTopo  (..)
            , CartesianTopo(..)
+
+           , cartesianId
+           , torsionId
+
            , xferC
            , xferT
            , proteinBackboneT
@@ -70,6 +74,12 @@ showCartesian (Cartesian { cPos     = Vector3 x y z
                          , cResId   = resId         }) = s
     where
       Just s = printf "ATOM  %5d  %-3s%4s A %3d    %8.3f%8.3f%8.3f  1.00  0.00" atId atName resName resId x y z
+
+cartesianId :: Cartesian -> (Int, Int, String, String)
+cartesianId c = (cAtId c, cResId c, cAtName c, cResName c)
+
+torsionId   :: Torsion   -> (Int, Int, String, String)
+torsionId   t = (tAtId t, tResId t, tAtName t, tResName t)
 
 -- | Shows Cartesian topology as PDB `ATOM` coordinate records.
 showCartesianTopo :: CartesianTopo -> String
