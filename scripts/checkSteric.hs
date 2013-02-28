@@ -1,11 +1,11 @@
 module Main where
 
-import System.Environment
-import Control.Exception(assert)
-import Control.Monad(forM)
 import qualified Data.ByteString.Char8 as BS
-import Data.Tree(flatten)
-import Numeric(showFFloat)
+import System.Environment
+import Control.Exception (assert)
+import Control.Monad     (forM)
+import Data.Tree(flatten   )
+import Numeric  (showFFloat)
 
 import Rosetta.Silent
 import Topo
