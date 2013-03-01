@@ -3,7 +3,7 @@ module Score.DistanceRestraints where
 
 import Data.List(sortBy)
 
-import Rosetta.Restraints
+import qualified Rosetta.Restraints as R
 
 import Topo
 
@@ -37,6 +37,8 @@ data AtomId = AtomId { resName :: BS.ByteString, -- may be empty!
 atA `compareAtoms` atB = case resId atA `compare` resId atB of
                            EQ   -> atName atA `atCmp` atName atB
                            ineq -> ineq
+
+-- TODO: less fallible alternative would be to keep atom indices (as their assignment doesn't vary!)
 
 atCmp "N"   _     = LT
 atCmp _    "N"    = GT
