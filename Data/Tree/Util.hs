@@ -1,7 +1,10 @@
-module Data.Tree.Util(descending) where
+module Data.Tree.Util( descending
+                     , transforming
+                     , rightistFlatten ) where
 
 -- ^ Contains utility methods for Data.Tree.Tree.
 import Data.Tree
+import Data.List(foldl')
 
 -- | Descends a tree, inheriting accumulator
 --   May be generalized into descend f a = fmap snd . inherit (\(a, _) c -> f a c) (a, undefined),
@@ -16,4 +19,11 @@ transforming ::  (a -> Tree b -> (a, c)) -> a -> Tree b -> Tree c
 transforming f acc node@(Node rec forest) = Node rec' $ map (transforming f acc') $ forest
   where
     (acc', rec') = f acc node
+
+-- | Flattens the tree in such a way, that node is before its nodes, and nodes are traversed in the reverse list order.
+rightistFlatten :: Tree a -> [a]
+rightistFlatten t = squish [] t
+  where
+    squish :: [a] -> Tree a -> [a]
+    squish xs (Node x ts) = x:foldl' squish xs ts
 

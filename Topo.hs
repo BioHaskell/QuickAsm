@@ -121,7 +121,7 @@ proteinBackboneT :: String -> Int -> -- residue name and number
 proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
     Node n [
       Node ca [ -- TODO: add sidechain
-        Node c $ tail ++ [Node o []] -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
+        Node c (Node o [] : tail) -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
       ]
     ]
   where
@@ -266,7 +266,8 @@ computeNextTorsion (bv1, bv2, lastPos) cartesian =
 computeTorsions :: CartesianTopo -> TorsionTopo
 computeTorsions topo = descending computeNextTorsion initialInputs topo
   where
-    (a:b:_)       = Data.Tree.flatten topo
+    a             = rootLabel topo
+    b             = rootLabel . last . subForest $ topo
     bv            = cPos b - cPos a
     initialInputs = (-bv, bv, cPos b) -- something will be wrong for first two...
 
@@ -275,8 +276,8 @@ reconstructTopology = undefined
 
 -- | Returns a list of topology nodes along topology backbone
 --   (which contains only first elements of forest list.)
-backbone (Node a []    ) = [a]
-backbone (Node a (bb:_)) = a:backbone bb
+backbone (Node a []) = [a]
+backbone (Node a bb) = a:backbone (last bb)
 
 -- | Returns a list of planar angles along the topology backbone.
 backbonePlanars   = tail . map tPlanar   . backbone
