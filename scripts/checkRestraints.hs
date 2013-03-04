@@ -18,6 +18,7 @@ visualizeClash (a, b) = show a ++ "X:X" ++ show b ++ " = " ++ showFFloat (Just 3
 main = do [ silentInputFilename
           , distanceRestraintsInput ] <- take 2 getArgs -- TODO: add RDC restraints input filename?
           mdls <- processSilent $ BS.pack $ silentInputFilename
+          restraints <- 
           forM mdls $ \mdl -> do let cart = computePositions $ silentModel2TorsionTopo mdl
                                  let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten $ cart
                                  mapM putStrLn clashes

@@ -44,6 +44,11 @@ Executable          reconstructBest
   Hs-Source-Dirs:   scripts
   main-is:          reconstructBest.hs
 
+Executable          reconstructNBest
+  build-depends:    QuickAsm, base, hRosetta, bytestring
+  Hs-Source-Dirs:   scripts
+  main-is:          reconstructNBest.hs
+
 Executable          reconstruct
   build-depends:    QuickAsm, base, hRosetta, bytestring
   Hs-Source-Dirs:   scripts
