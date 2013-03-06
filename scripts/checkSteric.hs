@@ -19,7 +19,7 @@ main = do args <- getArgs
           mdls <- processSilentFile $ BS.pack $ args !! 0
           forM mdls $ \mdl -> do let cart = computePositions $ silentModel2TorsionTopo mdl
                                  let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten $ cart
-                                 mapM putStrLn clashes
                                  putStrLn $ show (length clashes) ++ " steric clashes detected in " ++ BS.unpack (name mdl)
+                                 mapM putStrLn clashes
           return ()
           
