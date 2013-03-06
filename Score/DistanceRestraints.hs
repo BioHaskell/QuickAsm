@@ -92,13 +92,14 @@ prepareRestraintsFile mdl fname = do (rset, errs) <- flip precomputeOrder mdl `f
 -- | Precompute restraint order
 -- Returns a correct `RestraintSet` and a list of error messages about incorrect `R.Restraint`s.
 precomputeOrder :: [R.Restraint] -> CartesianTopo -> (RestraintSet, [String])
-precomputeOrder restrs cartopo = (RSet { byLeftAtom  = sortByKey leftAt  restraints
-                                       , byRightAtom = sortByKey rightAt restraints
-                                       , byNum       = sortByKey num     restraints
-                                       , size        = length restraints
-                                       }, errors)
+precomputeOrder restrs cartopo = ( RSet { byLeftAtom  = sortByKey leftAt  restraints
+                                        , byRightAtom = sortByKey rightAt restraints
+                                        , byNum       = sortByKey num     restraints
+                                        , size        = length restraints
+                                        }
+                                 , errors )
   where
-    restraints = zipWith (\i r -> r { num = i }) [1..] unnumberedRestraints
+    restraints = zipWith (\i r -> r { num = i }) [0..] unnumberedRestraints
     (errors, unnumberedRestraints) = partitionEithers $ map makeRestraint restrs
     makeRestraint :: R.Restraint -> Either String Restraint
     makeRestraint rRestr = do left  <- findAt $ R.at1 rRestr
