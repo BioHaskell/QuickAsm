@@ -1,8 +1,8 @@
+-- | Contains utility methods for Data.Tree.Tree.
 module Data.Tree.Util( descending
                      , transforming
                      , rightistFlatten ) where
 
--- ^ Contains utility methods for Data.Tree.Tree.
 import Data.Tree
 import Data.List(foldl')
 

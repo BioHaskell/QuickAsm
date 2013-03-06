@@ -63,7 +63,8 @@ data Cartesian = Cartesian { cPos     :: !Vector3
                            , cAtName  :: !String
                            , cResName :: !String
                            , cAtId    :: !Int
-                           , cResId   :: !Int     }
+                           , cResId   :: !Int
+                           }
 
 instance Show Cartesian where
   show = showCartesian
@@ -78,9 +79,11 @@ showCartesian (Cartesian { cPos     = Vector3 x y z
     where
       Just s = printf "ATOM  %5d  %-3s%4s A %3d    %8.3f%8.3f%8.3f  1.00  0.00" atId atName resName resId x y z
 
+-- | Extracts atom identifiers from Cartesian record.
 cartesianId :: Cartesian -> (Int, Int, String, String)
 cartesianId c = (cAtId c, cResId c, cAtName c, cResName c)
 
+-- | Extracts atom identifiers from Torsion record.
 torsionId   :: Torsion   -> (Int, Int, String, String)
 torsionId   t = (tAtId t, tResId t, tAtName t, tResName t)
 
@@ -132,6 +135,9 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
                             [psiPrev, omegaPrev, phi, psi] -- TODO: screwed, omega places NEXT "N" atom!!!
 -- TODO: add sidechains from: http://www.msg.ucsf.edu/local/programs/garlic/commands/dihedrals.html
 
+-- | Creates single residue protein backbone from residue name, identifier,
+-- and cartesian coordinates of atoms.
+-- Also accepts optional argument for next residue in chain, and sidechain generator (from coordinate list.)
 proteinBackboneC resName resId coords scGen tail =
     Node n [
       Node ca ([ -- TODO: add sidechain
@@ -144,6 +150,8 @@ proteinBackboneC resName resId coords scGen tail =
                             ["N", "CA", "C", "O"]
                             (take 4 coords)-- TODO: screwed, omega places NEXT "N" atom!!!
 
+-- | Constructs a Cartesian backbone, from a given string of residues names,
+-- and coordinate lists in an order in which topology is supposed to create them.
 constructCartesianBackbone :: [(String, [Vector3])] -> CartesianTopo
 constructCartesianBackbone recs = head $ constructCartesianBackbone' recs []
   where
@@ -163,6 +171,7 @@ atWithCoord resName resId atName coord = Cartesian { cPos     = coord
 atWithDihe resName resId name dihe = (mkAt name resName resId) { tDihedral = dihe }
 
 {-# INLINE mkAt #-}
+-- | Makes a template `Torsion` record for a given atom name.
 mkAt atName = at angle bondLen atName
   where
     (angle, bondLen) = idealGeom atName
@@ -275,7 +284,7 @@ computeTorsions topo = descending computeNextTorsion initialInputs topo
 reconstructTopology = undefined
 
 -- | Returns a list of topology nodes along topology backbone
---   (which contains only first elements of forest list.)
+-- (which contains only first elements of forest list.)
 backbone (Node a []) = [a]
 backbone (Node a bb) = a:backbone (last bb)
 
@@ -288,6 +297,7 @@ backboneDihedrals = tail . map tDihedral . backbone
 -- TODO: move unit tests to this module
 -- TODO: add silent2PDB script
 
+-- | Numbers atoms starting from 1 within topology with a given "setter".
 renumberAtomsWith :: (Num b) => (a -> b -> a) -> Tree a -> Tree a
 renumberAtomsWith setter t = evalState (mapM renum t) 1
   where
@@ -295,12 +305,15 @@ renumberAtomsWith setter t = evalState (mapM renum t) 1
                  modify (+1)
                  return $ a `setter` i
 
+-- | Renumbers Cartesian atoms within `CartesianTopo` starting from 1.
 renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
 
+-- | Renumbers Torsion atoms within `TorsionTopo` starting from 1.
 renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
-_test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
+--_test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
 
+-- | Converts a ROSETTA `SilentModel` to a Torsion topology.
 silentModel2TorsionTopo = renumberAtomsT . constructBackbone . prepare
   where
     prepare mdl = zipWith extractInput
