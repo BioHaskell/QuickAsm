@@ -15,7 +15,7 @@ model2topo = computePositions . silentModel2TorsionTopo
 
 --   TODO: optional trailing arguments - extract only given decoys
 main = do [silentInputFilename, pdbOutputFilename] <- getArgs
-          mdls <- processSilent $ BS.pack silentInputFilename
+          mdls <- processSilentFile $ BS.pack silentInputFilename
           let bestMdl = bestSilentModel mdls
           putStrLn $ BS.unpack (name bestMdl) ++ ": " ++ show (modelScoreIfAvailable bestMdl)
           writeFile pdbOutputFilename $ showCartesianTopo $ model2topo bestMdl

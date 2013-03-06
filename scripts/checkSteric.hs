@@ -16,7 +16,7 @@ visualizeClash (a, b) = show a ++ "X:X" ++ show b ++ " = " ++ showFFloat (Just 3
 
 main = do args <- getArgs
           assert (length args >= 1) $ return () -- TODO: define assertM?
-          mdls <- processSilent $ BS.pack $ args !! 0
+          mdls <- processSilentFile $ BS.pack $ args !! 0
           forM mdls $ \mdl -> do let cart = computePositions $ silentModel2TorsionTopo mdl
                                  let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten $ cart
                                  mapM putStrLn clashes

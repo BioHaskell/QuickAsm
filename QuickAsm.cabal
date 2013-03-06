@@ -54,4 +54,9 @@ Executable          reconstruct
   Hs-Source-Dirs:   scripts
   main-is:          reconstruct.hs
 
+Test-suite          test_Topo
+  build-depends:    QuickAsm, base, hRosetta, bytestring
+  Hs-Source-Dirs:   tests
+  main-is:          test_Topo.hs
+  type:             exitcode-stdio-1.0
 
