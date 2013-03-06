@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Score.DistanceRestraints where
 
+import System.IO(hPutStrLn, stderr)
 import qualified Data.ByteString.Char8 as BS
 import Data.List(sortBy, find)
 import Data.Tree(flatten)
 import Data.Either(partitionEithers)
+import Control.Monad(forM_)
 import qualified Data.Vector       as V
 import qualified Data.Vector.V3    as V3
 import qualified Data.Vector.Class as V3
@@ -25,15 +27,6 @@ data Restraint = Restraint { source               :: R.Restraint
 data RestraintSet = RSet { byLeftAtom, byRightAtom, byNum :: [Restraint]
                          , size :: Int }
   deriving (Show)
-
-prepareDistanceRestraints :: FilePath -> IO RestraintSet
-prepareDistanceRestraints filepath = makeRestraintSet `fmap` R.processRestraintsFile filepath
-
-makeRestraintSet :: [R.Restraint] -> RestraintSet
-makeRestraintSet rs = undefined
---RSet { byLeftAtom  = sortBy compareRestraintsByFirstAtom  rs
---                           , byRightAtom = sortBy compareRestraintsBySecondAtom rs
---                           }
 
 a `compareRestraintsByFirstAtom`  b = R.at1 a `compareAtoms` R.at2 b
 a `compareRestraintsBySecondAtom` b = R.at1 a `compareAtoms` R.at2 b
@@ -61,20 +54,14 @@ atCmp _    "N"    = GT
 atCmp "CA" "C"    = LT
 atCmp "C"  "CA"   = LT
 atCmp "C"  "O"    = LT
-atCmp _    "C"    = LT
-atCmp "O"  "C"    = GT
 atCmp "O"  _      = GT
 
 atCmp "HA" "CA"   = GT
 atCmp "CA" "HA"   = LT
-atCmp "HA" "N"    = GT
-atCmp "N"  "HA"   = LT
 atCmp "HA" "H"    = GT
 atCmp "HA" _      = LT -- includes sidechain
 atCmp _    "HA"   = GT
 
-atCmp "N"  "H"    = LT
-atCmp "H"  "N"    = GT
 atCmp "H"  _      = LT
 atCmp a     b   | a == b = EQ
 atCmp a     b   = error $ "Still undefined atom comparison within topology: " ++ show a ++ " vs " ++ show b
@@ -95,6 +82,12 @@ match a@(res1, at1, resid1) b@(res2, at2, resid2) = if (at1, resid1) /= (at2, re
 matchTopoAtId :: R.AtomId -> Cartesian -> Bool
 matchTopoAtId atid cart = match (BS.pack $ cResName $ cart, BS.pack $ cAtName $ cart, cResId  cart)
                                 (R.resName            atid,           R.atName  atid, R.resId atid)
+
+prepareRestraintsFile :: CartesianTopo -> FilePath -> IO RestraintSet
+prepareRestraintsFile mdl fname = do (rset, errs) <- flip precomputeOrder mdl `fmap` R.processRestraintsFile fname
+                                     forM_ errs $ \msg -> hPutStrLn stderr $ "ERROR in restraints from " ++
+                                                                             fname ++ ": " ++ msg
+                                     return rset
 
 -- | Precompute restraint order
 -- Returns a correct `RestraintSet` and a list of error messages about incorrect `R.Restraint`s.
@@ -120,8 +113,12 @@ precomputeOrder restrs cartopo = (RSet { byLeftAtom  = sortByKey leftAt  restrai
         findAt :: R.AtomId -> Either String Int
         findAt at = case find (matchTopoAtId at) topoOrder of
                       Just cart -> Right $ cAtId cart
-                      Nothing   -> Left $ "Cannot find atom: " ++ show at
+                      Nothing   -> Left $ "Cannot find atom: " ++ showAtom at
     topoOrder = flatten cartopo
+    showAtom atId = concat [ BS.unpack $ R.resName atId
+                           , show      $ R.resId   atId
+                           , " "
+                           , BS.unpack $ R.atName  atId ]
 
 -- TODO: move to Util, add QuickCheck
 -- | Sorts by a given key (and standard comparison.)
