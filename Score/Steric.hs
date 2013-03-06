@@ -1,6 +1,8 @@
 {-# LANGUAGE TupleSections #-}
 module Score.Steric( crossClashCheck
                    , selfClashCheck
+                   , crossClashCheck'
+                   , selfClashCheck'
                    , atomClashCheck
                    , cartesian2octree ) where
 
@@ -11,11 +13,15 @@ import Topo
 
 import AtomParams
 
+-- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
 cartesian2octree = O.fromList . map prepare
   where
     prepare cart = (cPos cart, cart)
 
+-- | Given a percent of van der Waals radius, returns all those atoms
+-- that are closer than the radius from an argument atom
+-- (without filtering out those involved in covalent bonds.)
 atomClashCheck :: Double -> O.Octree Cartesian -> Cartesian -> [Cartesian]
 atomClashCheck percent oct cart = filter (vdwClash cart) $ ats 
   where
@@ -27,14 +33,19 @@ atomClashCheck percent oct cart = filter (vdwClash cart) $ ats
         pos1 = cPos at1
         pos2 = cPos at2
 
+-- | Checks for steric clashes between two different lists of Cartesian records.
 crossClashCheck' :: Double -> [Cartesian] -> [Cartesian] -> [(Cartesian, Cartesian)]
 crossClashCheck' percent carts1 carts2 = concatMap (clashingPairs percent oct) carts1
   where
     oct = cartesian2octree carts2
 
+-- | Returns list of clashing pairs with the given Cartesian object.
 clashingPairs :: Double -> O.Octree Cartesian -> Cartesian -> [(Cartesian, Cartesian)]
 clashingPairs percent oct c = map (c,) $ atomClashCheck percent oct c
 
+-- | For a given percent of van der Waals radius that is forbidden,
+-- computes list of clashes, and filters out those that correspond
+-- to covalently bound atoms.
 selfClashCheck' :: Double -> [Cartesian] -> [(Cartesian, Cartesian)]
 selfClashCheck' percent carts = filter notConnected $ crossClashCheck' percent carts carts
   where
@@ -43,17 +54,22 @@ selfClashCheck' percent carts = filter notConnected $ crossClashCheck' percent c
 
 -- TODO: make a more clever check for topology? (e.g. return CartesianTopo instead of Cartesian?)
 
+-- | Checks whether two atoms are likely to be covalently bound.
 covalentlyBound at1 at2 = cov (cAtName at1) (cAtName at2)
   where
     cov "N" "C" = True
     cov "C" "N" = True
     cov _   _   = False
 
+-- | Returns residue identifier of a given Cartesian atom.
 residueId cart = (cResId cart, cResName cart)
 
+-- | Default limit for steric clash relative to atoms' van der Waals radius.
 defaultPercent = 0.5
 
+-- | Checks for steric clashes with self, with default parameters.
 selfClashCheck  = selfClashCheck'  defaultPercent
 
+-- | Checks for steric clashes with other molecule, with default parameters.
 crossClashCheck = crossClashCheck' defaultPercent
 
