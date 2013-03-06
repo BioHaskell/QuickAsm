@@ -15,8 +15,8 @@ import Data.Octree(dist)
 visualizeClash (a, b) = show a ++ "X:X" ++ show b ++ " = " ++ showFFloat (Just 3) (cPos a `dist` cPos b) ""
 
 main = do args <- getArgs
-          assert (length args >= 1) $ return () -- TODO: define assertM?
-          mdls <- processSilentFile $ BS.pack $ args !! 0
+          assert (length args == 1) $ return () -- TODO: define assertM?
+          mdls <- processSilentFile $ BS.pack $ head args
           forM mdls $ \mdl -> do let cart = computePositions $ silentModel2TorsionTopo mdl
                                  let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten $ cart
                                  putStrLn $ show (length clashes) ++ " steric clashes detected in " ++ BS.unpack (name mdl)
