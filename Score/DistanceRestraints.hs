@@ -5,6 +5,9 @@ import qualified Data.ByteString.Char8 as BS
 import Data.List(sortBy, find)
 import Data.Tree(flatten)
 import Data.Either(partitionEithers)
+import qualified Data.Vector       as V
+import qualified Data.Vector.V3    as V3
+import qualified Data.Vector.Class as V3
 
 import qualified Rosetta.Restraints as R
 
@@ -15,10 +18,13 @@ data Restraint = Restraint { source               :: R.Restraint
                            , leftAt, rightAt, num :: Int
                            , distance             :: Double
                            }
+  deriving (Show)
 
 -- | Contains a list of restraints,
 --   sorted by both first and second atom (thus two copies of the same set.)
-data RestraintSet = RSet { byLeftAtom, byRightAtom :: [Restraint] }
+data RestraintSet = RSet { byLeftAtom, byRightAtom, byNum :: [Restraint]
+                         , size :: Int }
+  deriving (Show)
 
 prepareDistanceRestraints :: FilePath -> IO RestraintSet
 prepareDistanceRestraints filepath = makeRestraintSet `fmap` R.processRestraintsFile filepath
@@ -84,7 +90,8 @@ match a@(res1, at1, resid1) b@(res2, at2, resid2) = if (at1, resid1) /= (at2, re
                                                                 then True
                                                                 else error $ "Mismatch in residue names: " ++ show a ++ " vs " ++ show b
 
--- | Tries to match Cartesian atom against Rosetta.DistanceRestraints.Restraint atom id.
+-- | Tries to match Cartesian atom against
+-- Rosetta.DistanceRestraints.Restraint atom id.
 matchTopoAtId :: R.AtomId -> Cartesian -> Bool
 matchTopoAtId atid cart = match (BS.pack $ cResName $ cart, BS.pack $ cAtName $ cart, cResId  cart)
                                 (R.resName            atid,           R.atName  atid, R.resId atid)
@@ -94,11 +101,12 @@ matchTopoAtId atid cart = match (BS.pack $ cResName $ cart, BS.pack $ cAtName $ 
 precomputeOrder :: [R.Restraint] -> CartesianTopo -> (RestraintSet, [String])
 precomputeOrder restrs cartopo = (RSet { byLeftAtom  = sortByKey leftAt  restraints
                                        , byRightAtom = sortByKey rightAt restraints
+                                       , byNum       = sortByKey num     restraints
+                                       , size        = length restraints
                                        }, errors)
   where
     restraints = zipWith (\i r -> r { num = i }) [1..] unnumberedRestraints
     (errors, unnumberedRestraints) = partitionEithers $ map makeRestraint restrs
-    sortByKey k = sortBy (\x y -> k x `compare` k y)
     makeRestraint :: R.Restraint -> Either String Restraint
     makeRestraint rRestr = do left  <- findAt $ R.at1 rRestr
                               right <- findAt $ R.at2 rRestr
@@ -106,7 +114,7 @@ precomputeOrder restrs cartopo = (RSet { byLeftAtom  = sortByKey leftAt  restrai
                                                  , leftAt   = left
                                                  , rightAt  = right
                                                  , distance = R.goal rRestr
-                                                 , num      = 0 -- to assign later
+                                                 , num      = 0 -- to assign later with renumbering
                                                  }
       where
         findAt :: R.AtomId -> Either String Int
@@ -115,20 +123,40 @@ precomputeOrder restrs cartopo = (RSet { byLeftAtom  = sortByKey leftAt  restrai
                       Nothing   -> Left $ "Cannot find atom: " ++ show at
     topoOrder = flatten cartopo
 
--- | Finds all atom positions
-findPositions which restraint topo = findPositions' 0 which restraint (flatten topo)
+-- TODO: move to Util, add QuickCheck
+-- | Sorts by a given key (and standard comparison.)
+sortByKey k = sortBy (\x y -> k x `compare` k y)
+
+-- | Finds all atom positions, taking as argument a selector, restraint
+-- list, and Cartesian topology.
+findPositions :: (Restraint -> Int) -> [Restraint] -> Tree Cartesian -> [(Int, V3.Vector3)]
+findPositions which restraints topo = findPositions' 0 which restraints $ flatten topo
   where
-    findPositions' index which restrs@(r:rs) aList@(b:bs) | which r == index = (cPos b, r):findPositions' index     which rs     aList 
+    findPositions' :: Int -> (Restraint -> Int) -> [Restraint] -> [Cartesian] -> [(Int, V3.Vector3)]
+    findPositions' index which restrs@(r:rs) aList@(b:bs) | which r == index = (num r, cPos b):findPositions'  index    which rs     aList 
     findPositions' index which []            _                               = []
-    findPositions' index which restrs@(r:rs) aList@(b:bs) | which r >  index =             findPositions' (index+1) which restrs bs
+    findPositions' index which restrs@(r:rs) aList@(b:bs) | which r >  index =                 findPositions' (index+1) which restrs bs
     findPositions' index which restrs        []                              = error $ "Cannot find atoms for following restraints: " ++ show restrs
 
+checkDistanceRestraints' :: RestraintSet -> CartesianTopo -> V.Vector Double
+checkDistanceRestraints' rset carTopo = scores
+  where
+    empty  = V.replicate (size rset) 0 -- may also give just 0.0, since th
+    finder findCriterion rsetProj  = empty V.// findPositions findCriterion (rsetProj rset) carTopo
+    lefts  = finder leftAt  byLeftAtom
+    rights = finder rightAt byRightAtom
+    dists  = V.fromList $ map distance $ byNum rset 
+    score  pos1 pos2 dist = max (V3.vmag (pos2 - pos1) - dist) 0.0
+    -- TODO: do with need max penalty?
+    scores = V.zipWith3 score lefts rights dists
+
 -- | Show value of each restraint.
-checkDistanceRestraints :: RestraintSet -> CartesianTopo -> [(R.Restraint, Double)]
-checkDistanceRestraints restraints carTopo = undefined
-    
+checkDistanceRestraints :: RestraintSet -> CartesianTopo -> [(Restraint, Double)]
+checkDistanceRestraints rset carTopo = zip (byNum rset) $ V.toList $ checkDistanceRestraints' rset carTopo
 
 -- | Give a synthetic restraint score.
 scoreDistanceRestraints :: RestraintSet -> CartesianTopo -> Double
-scoreDistanceRestraints = undefined 
+scoreDistanceRestraints rset carTopo = sqrt $ V.foldl' addSq 0.0 $ checkDistanceRestraints' rset carTopo
+  where
+    addSq acc d = acc + d * d
 
