@@ -3,3 +3,5 @@ String -> ByteString
 
 Add test for StericClash that shows something :-)
 
+Scoring 832 models took 1m24s (1m21 user time.)
+Among these parsing took 33s.
