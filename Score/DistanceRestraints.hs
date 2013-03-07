@@ -7,6 +7,7 @@ import Data.List(sortBy, find)
 import Data.Tree(flatten)
 import Data.Either(partitionEithers)
 import Control.Monad(forM_)
+import Control.DeepSeq(NFData(..), deepseq)
 import qualified Data.Vector       as V
 import qualified Data.Vector.V3    as V3
 import qualified Data.Vector.Class as V3
@@ -16,17 +17,22 @@ import qualified Rosetta.Restraints as R
 import Topo
 
 -- | Contains a restraint with a precomputed atom number
-data Restraint = Restraint { source               :: R.Restraint
-                           , leftAt, rightAt, num :: Int
-                           , distance             :: Double
+data Restraint = Restraint { source               :: !R.Restraint
+                           , leftAt, rightAt, num :: !Int
+                           , distance             :: !Double
                            }
   deriving (Show)
+
+instance NFData Restraint where
 
 -- | Contains a list of restraints,
 --   sorted by both first and second atom (thus two copies of the same set.)
 data RestraintSet = RSet { byLeftAtom, byRightAtom, byNum :: [Restraint]
                          , size :: Int }
   deriving (Show)
+
+instance NFData RestraintSet where
+  rnf rset = rnf (byLeftAtom rset) `seq` rnf (byRightAtom rset) `seq` rnf (byNum rset) 
 
 a `compareRestraintsByFirstAtom`  b = R.at1 a `compareAtoms` R.at2 b
 a `compareRestraintsBySecondAtom` b = R.at1 a `compareAtoms` R.at2 b
