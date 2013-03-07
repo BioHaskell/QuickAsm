@@ -8,18 +8,20 @@ import Data.Tree(flatten)
 import Data.Either(partitionEithers)
 import Control.Monad(forM_)
 import Control.DeepSeq(NFData(..), deepseq)
-import qualified Data.Vector       as V
-import qualified Data.Vector.V3    as V3
-import qualified Data.Vector.Class as V3
-
+import Control.Exception(assert)
+import qualified Data.Vector        as V
+import qualified Data.Vector.V3     as V3
+import qualified Data.Vector.Class  as V3
+import qualified Data.IntMap        as IMap
 import qualified Rosetta.Restraints as R
 
 import Topo
 
 -- | Contains a restraint with a precomputed atom number
-data Restraint = Restraint { source               :: !R.Restraint
-                           , leftAt, rightAt, num :: !Int
-                           , distance             :: !Double
+data Restraint = Restraint { source                 :: !R.Restraint
+                           , leftAt,  rightAt
+                           , leftRes, rightRes, num :: !Int
+                           , distance               :: !Double
                            }
   deriving (Show)
 
@@ -113,6 +115,8 @@ precomputeOrder restrs cartopo = ( RSet { byLeftAtom  = sortByKey leftAt  restra
                               return $ Restraint { source   = rRestr
                                                  , leftAt   = left
                                                  , rightAt  = right
+                                                 , leftRes  = R.resId $ R.at1 rRestr
+                                                 , rightRes = R.resId $ R.at2 rRestr
                                                  , distance = R.goal rRestr
                                                  , num      = 0 -- to assign later with renumbering
                                                  }
@@ -163,4 +167,25 @@ scoreDistanceRestraints :: RestraintSet -> CartesianTopo -> Double
 scoreDistanceRestraints rset carTopo = sqrt $ V.foldl' addSq 0.0 $ checkDistanceRestraints' rset carTopo
   where
     addSq acc d = acc + d * d
+
+-- NOTE: due to necessity of renumbering, prepareRestraintSet is better way to make subrange query!
+subrange :: RestraintSet -> (Int, Int) -> RestraintSet
+subrange rset (from, to) = assertions $
+                             RSet { byLeftAtom  = map renum lefts
+                                  , byRightAtom = map renum rights
+                                  , byNum       = map renum toRenum
+                                  , size        = size' -- we keep the same size, to keep valid vector!
+                                  }
+  where
+    lefts  = filter restraintInRange $ byLeftAtom  rset
+    rights = filter restraintInRange $ byRightAtom rset
+    restraintInRange restraint = resInRange (leftRes restraint) && resInRange (rightRes restraint)
+    resInRange i = (from <= i) && (i <= to)
+    size'   = length lefts
+    size''  = length rights
+    size''' = length toRenum
+    assertions = assert ((size' == size'') && (size'' == size'''))
+    toRenum = filter restraintInRange $ byNum rset
+    renumDict = IMap.fromList $ zip (map num toRenum) [0..] 
+    renum restr = restr { num = renumDict IMap.! num restr }
 
