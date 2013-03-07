@@ -1,4 +1,4 @@
-module Timing where
+module Util.Timing where
 
 import System.IO(hPutStrLn, stderr)
 import System.CPUTime(getCPUTime)
