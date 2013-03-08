@@ -1,13 +1,16 @@
 module Main where
---module FragSample where
 
 import System.Environment
-import System.Random(randomR, getStdRandom, RandomGen)
-import qualified Data.Vector       as V
-import qualified Data.ByteString.Char8       as BS
+import System.Random (randomR, getStdRandom, RandomGen)
+import System.Exit   (exitFailure, exitSuccess)
+import Control.Monad (when)
+import System.IO     (hPutStrLn, stderr)
 
-import qualified Rosetta.Fragments as F
-import qualified Rosetta.Silent    as S
+import qualified Data.Vector           as V
+import qualified Data.ByteString.Char8 as BS
+
+import qualified Rosetta.Fragments     as F
+import qualified Rosetta.Silent        as S
 import Topo
 import Util.Timing
 
@@ -32,11 +35,6 @@ randomF fragset gen = ((pos, frag), gen'')
   where
     ((pos, site), gen' ) = randomV' (F.unRFragSet fragset) gen
     (frag,        gen'') = randomV  site                   gen'
-
-{-
-randomFIO :: F.RFragSet -> IO (Int, F.RFrag)
-randomFIO = getStdRandom . randomF
--}
 
 -- | Perform a random fragment replacement on a TorsionTopo.
 randomReplace :: (RandomGen r) => F.RFragSet -> TorsionTopo -> r -> (TorsionTopo, r)
@@ -86,8 +84,13 @@ replaceBackboneDihedrals []     t               = t
 replaceBackboneDihedrals (d:ds) (Node c forest) = Node (c { tDihedral = d })
                                                        $ mapLastElement (replaceBackboneDihedrals ds) forest
 
-main = do [ fragmentInputFilename, silentInputFilename, silentOutputFilename , pdbOutputFilename ] <- getArgs
+main = do args <- getArgs
+          when (length args /= 4) $ do hPutStrLn stderr "FragSample <fragments_R3> <silentInput.out> <output.out> <output.pdb>"
+                                       hPutStrLn stderr "NOTE: only first model from <silentInput.out> is taken."
+                                       exitFailure
+          let [ fragmentInputFilename, silentInputFilename, silentOutputFilename , pdbOutputFilename ] = args
           main' fragmentInputFilename silentInputFilename silentOutputFilename pdbOutputFilename
+          exitSuccess
 
 main' fragmentInputFilename silentInputFilename silentOutputFilename pdbOutputFilename = 
     do fragset <- time "Reading fragment set" $ F.processFragmentsFile fragmentInputFilename
