@@ -72,6 +72,7 @@ applyFragment vres t = assertions $ replaceBackboneDihedrals dihes t
                          , F.psi   = psi
                          , F.omega = omega }) = [phi, psi, omega]
 
+-- | Maps a function over the last element of the list, and returns modified list.
 mapLastElement f []     = error "mapLastElement called on an empty list!"
 mapLastElement f [c]    = [f c]
 mapLastElement f (c:cs) = c:mapLastElement f cs
@@ -83,17 +84,17 @@ replaceBackboneDihedrals []     t               = t
 replaceBackboneDihedrals (d:ds) (Node c forest) = Node (c { tDihedral = d })
                                                        $ mapLastElement (replaceBackboneDihedrals ds) forest
 
-main = do [fragmentInputFilename, silentInputFilename, pdbOutputFilename] <- getArgs
-          main' fragmentInputFilename silentInputFilename pdbOutputFilename
+main = do [fragmentInputFilename, silentInputFilename, silentOutputFilename, pdbOutputFilename] <- getArgs
+          main' fragmentInputFilename silentInputFilename silentOutputFilename pdbOutputFilename
 
-main' fragmentInputFilename silentInputFilename pdbOutputFilename = 
+main' fragmentInputFilename silentInputFilename silentOutputFilename pdbOutputFilename = 
     do fragset <- F.processFragmentsFile fragmentInputFilename
        mdls    <- S.processSilentFile    silentInputFilename
        let mdl = silentModel2TorsionTopo $ head mdls
        newMdl <- getStdRandom $ randomReplace fragset mdl
        -- TODO: implement torsionTopo2SilentModel
-       -- let smdl = torsionTopo2SilentModel neMdl
-       --S.writeSilentFile silentOutputFilename [smdl]
+       let smdl = torsionTopo2SilentModel newMdl
+       S.writeSilentFile silentOutputFilename [smdl]
        writeFile pdbOutputFilename $ showCartesianTopo $ computePositions newMdl  
        
 

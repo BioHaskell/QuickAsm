@@ -1,9 +1,9 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-module Topo( Tree         (..)
-           , Torsion      (..)
-           , Cartesian    (..)
-           , TorsionTopo  (..)
-           , CartesianTopo(..)
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
+module Topo( Tree          (..)
+           , Torsion       (..)
+           , Cartesian     (..)
+           , TorsionTopo   (..)
+           , CartesianTopo (..)
 
            , cartesianId
            , torsionId
@@ -25,6 +25,7 @@ module Topo( Tree         (..)
 
            -- conversions from ROSETTA input
            , silentModel2TorsionTopo
+           , torsionTopo2SilentModel 
            ) where
 
 import System.IO
@@ -35,13 +36,13 @@ import Data.Vector.Class
 import Data.Tree
 import Data.Tree.Util
 import Data.Traversable(mapM)
-import Data.List(intercalate)
+import Data.List(intercalate, group)
 import Control.Monad.State(State, get, modify, evalState)
 import qualified Data.ByteString.Char8 as BS
 
 import Rosetta.Silent
 
-import Util.Fasta(fastacode2resname)
+import Util.Fasta(fastacode2resname, resname2fastacode)
 import Util.Angle
 import Util.Geom
 import Util.MyPrintf
@@ -324,4 +325,39 @@ silentModel2TorsionTopo = renumberAtomsT . constructBackbone . prepare
                                   , psi   silentRec
                                   , omega silentRec        )
 
+torsionTopo2residueDescriptors = map head . group . map tDescriptor . backbone
+{-
+  where
+    bbAts = backbone topo
+    descriptors _    []     = []
+    descriptors desc (d:ds) = if desc' == desc
+                                then       descriptors desc ds
+                                else desc':descriptors desc' 
+      where
+        desc' = descriptor d
+-}
+
+tDescriptor tors = (tResName tors, tResId tors)
+
+-- | Converts a `TorsionTopo` to a `SilentModel` with dihedrals.
+torsionTopo2SilentModel topo = SilentModel { fastaSeq          = BS.pack resSeq
+                                           , residues          = residueRecords
+                                           , name              = "<unnamed topology>"
+                                           , otherDescriptions = []
+                                           , scores            = []
+                                           }
+  where
+    residueRecords     = zipWith makeSilentRec dihes $ map snd resDesc
+    resDesc            = torsionTopo2residueDescriptors topo 
+    dihes              = triples $ tail $ backboneDihedrals topo -- last omega angle is absent
+    triples (a:b:c:cs) =  (a, b, c):triples cs
+    triples [a]        = [(a, 0, 0)] -- last
+    makeSilentRec (phi, psi, omega) resId = emptySilentRec { phi     = phi
+                                                           , psi     = psi
+                                                           , omega   = omega
+                                                           , resId   = resId
+                                                           }
+    resSeq = map (resname2fastacode . fst) resDesc
+-- TODO: fill in caX, caY, caZ by computing Cartesian topology
+-- TODO: preserve SS?
 
