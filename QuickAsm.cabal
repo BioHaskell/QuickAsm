@@ -59,6 +59,11 @@ Executable          reconstruct
   Hs-Source-Dirs:   scripts
   main-is:          reconstruct.hs
 
+Executable          FragSample
+  build-depends:    QuickAsm, base, hRosetta, bytestring, vector, random
+  Hs-Source-Dirs:   scripts
+  main-is:          FragSample.hs
+
 Executable          score
   build-depends:    QuickAsm, base, hRosetta, bytestring, deepseq >= 1.3.0.0, containers
   Hs-Source-Dirs:   scripts

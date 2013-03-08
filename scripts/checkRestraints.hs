@@ -22,7 +22,7 @@ main = do args <- getArgs
           when (length args /= 2) $ do hPutStrLn stderr "USAGE: checkRestraints <silent.out> <distances.cst>"
                                        exitFailure 
           let [ silentInputFilename, distanceRestraintsInput ] = args
-          sMdls <- processSilentFile $ BS.pack $ silentInputFilename
+          sMdls <- processSilentFile silentInputFilename
           let cMdls = map (computePositions . silentModel2TorsionTopo) sMdls
           let names = map name sMdls
           let fstMdl = head cMdls

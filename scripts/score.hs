@@ -39,7 +39,7 @@ main = do args <- getArgs
                                    4 -> let [a, b] = map read $ drop 2 args -- TODO: handle errors here
                                         in Just (a, b)
                                    _ -> error "Impossible!"
-          sMdls <- time' "Parsing silent input" $ processSilentFile $ BS.pack $ silentInputFilename
+          sMdls <- time' "Parsing silent input" $ processSilentFile silentInputFilename
           let cMdls  = map (computePositions . silentModel2TorsionTopo) sMdls
           let names  = map name sMdls
           let fstMdl = head cMdls
