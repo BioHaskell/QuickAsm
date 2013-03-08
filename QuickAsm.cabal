@@ -60,7 +60,7 @@ Executable          reconstruct
   main-is:          reconstruct.hs
 
 Executable          FragSample
-  build-depends:    QuickAsm, base, hRosetta, bytestring, vector, random
+  build-depends:    QuickAsm, base, hRosetta, bytestring, vector, random, deepseq
   Hs-Source-Dirs:   scripts
   main-is:          FragSample.hs
 

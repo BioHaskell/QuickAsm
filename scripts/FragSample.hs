@@ -9,6 +9,7 @@ import qualified Data.ByteString.Char8       as BS
 import qualified Rosetta.Fragments as F
 import qualified Rosetta.Silent    as S
 import Topo
+import Util.Timing
 
 -- | Draw a random element of a vector.
 randomV v gen = (e, gen')
@@ -29,8 +30,8 @@ randomVIO v = getStdRandom $ randomV v
 randomF :: RandomGen t => F.RFragSet -> t -> ((Int, F.RFrag), t)
 randomF fragset gen = ((pos, frag), gen'')
   where
-    ((pos, site), gen' ) = randomV' fragset gen
-    (frag,        gen'') = randomV  site    gen'
+    ((pos, site), gen' ) = randomV' (F.unRFragSet fragset) gen
+    (frag,        gen'') = randomV  site                   gen'
 
 {-
 randomFIO :: F.RFragSet -> IO (Int, F.RFrag)
@@ -44,6 +45,7 @@ randomReplace fragset topo gen = topo' `seq` (topo', gen')
     Just topo' = replaceFragment pos frag topo
     ((pos, frag), gen') = randomF fragset gen
 
+-- | Replaces a fragment at a given position in the topology.
 replaceFragment pos frag topo = topo `changeAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
 
 -- | Changes a topology at a first backbone position given by a predicate (if such a position is found.)
@@ -84,17 +86,17 @@ replaceBackboneDihedrals []     t               = t
 replaceBackboneDihedrals (d:ds) (Node c forest) = Node (c { tDihedral = d })
                                                        $ mapLastElement (replaceBackboneDihedrals ds) forest
 
-main = do [fragmentInputFilename, silentInputFilename, silentOutputFilename, pdbOutputFilename] <- getArgs
+main = do [ fragmentInputFilename, silentInputFilename, silentOutputFilename , pdbOutputFilename ] <- getArgs
           main' fragmentInputFilename silentInputFilename silentOutputFilename pdbOutputFilename
 
 main' fragmentInputFilename silentInputFilename silentOutputFilename pdbOutputFilename = 
-    do fragset <- F.processFragmentsFile fragmentInputFilename
-       mdls    <- S.processSilentFile    silentInputFilename
-       let mdl = silentModel2TorsionTopo $ head mdls
-       newMdl <- getStdRandom $ randomReplace fragset mdl
+    do fragset <- time "Reading fragment set" $ F.processFragmentsFile fragmentInputFilename
+       mdls    <- time "Reading silent file " $ S.processSilentFile    silentInputFilename
+       mdl <- timePure "Converting silent model to topology" $ silentModel2TorsionTopo $ head mdls
+       newMdl <- time "Replacing a random fragment" $ getStdRandom $ randomReplace fragset mdl
        -- TODO: implement torsionTopo2SilentModel
-       let smdl = torsionTopo2SilentModel newMdl
-       S.writeSilentFile silentOutputFilename [smdl]
-       writeFile pdbOutputFilename $ showCartesianTopo $ computePositions newMdl  
+       smdl <- timePure "Computing silent model" $ torsionTopo2SilentModel newMdl
+       time "Writing silent file" $ S.writeSilentFile silentOutputFilename [smdl]
+       time "Writing PDB file"    $ writeFile pdbOutputFilename $ showCartesianTopo $ computePositions newMdl  
        
 

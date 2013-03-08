@@ -31,14 +31,16 @@ module Topo( Tree          (..)
 import System.IO
 
 import Prelude hiding (mapM)
-import Data.Vector.V3
-import Data.Vector.Class
+import Control.DeepSeq
 import Data.Tree
 import Data.Tree.Util
 import Data.Traversable(mapM)
 import Data.List(intercalate, group)
+
 import Control.Monad.State(State, get, modify, evalState)
 import qualified Data.ByteString.Char8 as BS
+import Data.Vector.V3
+import Data.Vector.Class
 
 import Rosetta.Silent
 
@@ -58,6 +60,10 @@ data Torsion = Torsion { tPlanar, tDihedral :: !Double
                        , tResId             :: !Int
                        , tAtId              :: !Int    }
   deriving(Show)
+
+instance NFData Torsion   where
+
+instance NFData Cartesian where
 
 -- | Topology node record with cartesian coordinates.
 data Cartesian = Cartesian { cPos     :: !Vector3
@@ -351,7 +357,8 @@ torsionTopo2SilentModel topo = SilentModel { fastaSeq          = BS.pack resSeq
     resDesc            = torsionTopo2residueDescriptors topo 
     dihes              = triples $ tail $ backboneDihedrals topo -- last omega angle is absent
     triples (a:b:c:cs) =  (a, b, c):triples cs
-    triples [a]        = [(a, 0, 0)] -- last
+    triples [a, b]     = [(a, 0, 0)] -- last, skip O angle
+    triples oh         = error $ "Inexhaustive match in triples: " ++ show oh
     makeSilentRec (phi, psi, omega) resId = emptySilentRec { phi     = phi
                                                            , psi     = psi
                                                            , omega   = omega
