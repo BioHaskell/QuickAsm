@@ -1,6 +1,9 @@
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE ExistentialQuantification #-}
 -- | Implementation of polymorphic lists of scoring functions.
-module ScoreSet where
+module ScoreSet( ScoringFunction(..)
+               , AnyScoringFun  (..)
+               , ScoreSet       (..)
+               ) where
 
 import qualified Data.ByteString.Char8 as BS
 
@@ -17,18 +20,24 @@ class ScoringFunction s where
   scoreLabel  :: s -> BS.ByteString
   scores      :: s -> (TorsionTopo, CartesianTopo) -> [(BS.ByteString, Double)]
 
--- | Convenience alias for a polymorphic scoring function argument.
-newtype GenericScoringFunction = SFun { unSFun :: (forall s. (ScoringFunction s) => s) }
+-- | Existiential wrapping for any scoring function. (Eg. OOP comes back.)
+data AnyScoringFun = forall s. ScoringFunction s => ScoringFun s
+
+instance ScoringFunction AnyScoringFun where
+  score      (ScoringFun s) arg = score      s arg
+  scoreShow  (ScoringFun s) arg = scoreShow  s arg
+  scoreLabel (ScoringFun s)     = scoreLabel s
+  scores     (ScoringFun s) arg = scores     s arg
 
 -- | Set of polymorphic scoring functions.
 data ScoreSet = ScoreSet { name       :: BS.ByteString
-                         , components :: [GenericScoringFunction]
+                         , components :: [AnyScoringFun]
                          }
 
-scoreComponents s arg = map (flip (score . unSFun)  arg) (components s)
+scoreComponents s arg = map (flip score  arg) $ components s
 
 instance ScoringFunction ScoreSet where
   scoreLabel   = name
   score  s arg = sum $ scoreComponents s arg
-  scores s arg = zip (map (scoreLabel . unSFun) $ components s) (scoreComponents s arg)
+  scores s arg = zip (map scoreLabel $ components s) (scoreComponents s arg)
 
