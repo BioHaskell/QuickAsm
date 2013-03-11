@@ -16,6 +16,7 @@ import qualified Data.IntMap        as IMap
 import qualified Rosetta.Restraints as R
 
 import Topo
+import Score.ScoreSet(ScoringFunction(..))
 
 -- | Contains a restraint with a precomputed atom number
 data Restraint = Restraint { source                 :: !R.Restraint
@@ -188,4 +189,15 @@ subrange rset (from, to) = assertions $
     toRenum = filter restraintInRange $ byNum rset
     renumDict = IMap.fromList $ zip (map num toRenum) [0..] 
     renum restr = restr { num = renumDict IMap.! num restr }
+
+
+makeDistanceScore :: RestraintSet -> ScoringFunction
+makeDistanceScore rset = sf
+  where sf = ScoringFunction
+               { score      = \(_, cartopo) -> scoreDistanceRestraints rset cartopo
+               , scoreShow  = \(_, cartopo) -> map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") $ checkDistanceRestraints rset cartopo
+               , scoreLabel = "cst"
+               , scores     = \(_, cartopo) -> [("cst", scoreDistanceRestraints rset cartopo)]
+               , components = [sf]
+               }
 

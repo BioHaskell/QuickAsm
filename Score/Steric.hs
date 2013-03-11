@@ -4,14 +4,19 @@ module Score.Steric( crossClashCheck
                    , crossClashCheck'
                    , selfClashCheck'
                    , atomClashCheck
-                   , cartesian2octree ) where
+                   , atomClashScore
+                   , selfClashScore
+                   , cartesian2octree
+                   , stericScore      ) where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Octree as O
 import Data.Tree(flatten)
 
 import Topo
 
 import AtomParams
+import Score.ScoreSet
 
 -- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
@@ -33,6 +38,27 @@ atomClashCheck percent oct cart = filter (vdwClash cart) $ ats
         pos1 = cPos at1
         pos2 = cPos at2
 
+atomClashScore :: Double -> O.Octree Cartesian -> Cartesian -> Double
+atomClashScore percent oct cart = sum $ map (vdwScore cart) $ ats
+  where
+    ats = map snd . O.withinRange oct radius . cPos $ cart
+    cRadius = atomicRadius . atomType . cAtName
+    radius = (cRadius cart + maxAtomicRadius) * percent
+    at1 `vdwScore` at2 = if notConnected (at1, at2) && notSame (at1, at2)
+                           then min 0.0 $ (cRadius at1 + cRadius at2) * percent - (cPos at1 `O.dist` cPos at2)
+                           else     0.0
+
+
+
+notConnected (at1, at2) = notSame (at1, at2) && not (covalentlyBound at1 at2)
+
+notSame (at1, at2) = residueId at1 /= residueId at2
+
+selfClashScore :: Double -> CartesianTopo -> Double
+selfClashScore percent carts = sum $ map (atomClashScore percent oct) $ flatten carts
+  where
+    oct = cartesian2octree $ flatten carts
+
 -- | Checks for steric clashes between two different lists of Cartesian records.
 crossClashCheck' :: Double -> [Cartesian] -> [Cartesian] -> [(Cartesian, Cartesian)]
 crossClashCheck' percent carts1 carts2 = concatMap (clashingPairs percent oct) carts1
@@ -48,9 +74,6 @@ clashingPairs percent oct c = map (c,) $ atomClashCheck percent oct c
 -- to covalently bound atoms.
 selfClashCheck' :: Double -> [Cartesian] -> [(Cartesian, Cartesian)]
 selfClashCheck' percent carts = filter notConnected $ crossClashCheck' percent carts carts
-  where
-    notConnected (at1, at2) = notSame (at1, at2) && not (covalentlyBound at1 at2)
-    notSame (at1, at2) = residueId at1 /= residueId at2
 
 -- TODO: make a more clever check for topology? (e.g. return CartesianTopo instead of Cartesian?)
 
@@ -72,4 +95,15 @@ selfClashCheck  = selfClashCheck'  defaultPercent
 
 -- | Checks for steric clashes with other molecule, with default parameters.
 crossClashCheck = crossClashCheck' defaultPercent
+
+stericScore :: ScoringFunction
+stericScore = sf
+  where sf = ScoringFunction
+               { score      = selfClashScore defaultPercent . snd
+               , scoreShow  = map (BS.pack . show) . selfClashCheck . flatten . snd
+               , scoreLabel = "steric"
+               , scores     = \topos -> [("steric", score sf topos)]
+               , components = [sf]
+               }
+-- TODO: abstract creation of single scoring functions.
 

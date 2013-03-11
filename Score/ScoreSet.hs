@@ -1,13 +1,15 @@
 {-# LANGUAGE ExistentialQuantification #-}
 -- | Implementation of polymorphic lists of scoring functions.
-module ScoreSet( ScoringFunction (..)
-               , makeScoreSet
-               ) where
+module Score.ScoreSet( ScoringFunction (..)
+                     , makeScoreSet
+                     ) where
 
 import qualified Data.ByteString.Char8 as BS
 
 import Topo(TorsionTopo, CartesianTopo)
 
+-- TODO: Move ScoringFunction to a separate module? (Than makeScoreSet.)
+-- TODO: add function that scores a cross of two models.
 -- | Actions available for any generic scoring function or potential.
 data ScoringFunction = ScoringFunction {
     -- | Computes a value of a scoring function.
