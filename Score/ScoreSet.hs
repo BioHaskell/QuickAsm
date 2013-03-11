@@ -2,8 +2,15 @@
 -- | Implementation of polymorphic lists of scoring functions.
 module Score.ScoreSet( makeScoreSet
                      , makeAllScores
+                     , reportModelScore
+                     , hReportModelScore
+                     , ScoringFunction
+                     , showScores
                      ) where
 
+import System.IO(stdout)
+
+import Topo(computePositions)
 import Score.ScoringFunction
 import Score.DistanceRestraints(makeDistanceScore)
 import Score.Steric            (stericScore)
@@ -27,4 +34,11 @@ makeScoreSet name components =
 
 makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
                                           , stericScore            ]
+
+reportModelScore = hReportModelScore stdout
+
+hReportModelScore handle sf mdl = do BS.hPutStrLn handle $ showScores labelsValues
+                                     return $ snd $ head labelsValues
+  where
+    labelsValues = scores sf (mdl, computePositions mdl)
 
