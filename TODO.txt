@@ -1,3 +1,12 @@
+For computing asyn:
+1. Action to repeat model, and distinguish linker.
+2. MMC sampling.
+Optional:
+3. Planarity restraint for NH. (Absolute value of a dot product with vector perpendicular to the plane?)
+4. Plane shift restraint. (one coordinate strictly higher between polymers.)
+5. SPARTA restraints as a guide? 
+
+
 Profile reconstruct test.
 String -> ByteString
 
