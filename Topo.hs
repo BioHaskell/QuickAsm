@@ -147,9 +147,9 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
 -- Also accepts optional argument for next residue in chain, and sidechain generator (from coordinate list.)
 proteinBackboneC resName resId coords scGen tail =
     Node n [
-      Node ca ( -- TODO: add sidechain
-        Node c (tail ++ [Node o []]) -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
-      ):scGen otherCoords -- TODO: check that scGen eaten all coords?
+      Node ca ([ -- TODO: add sidechain
+                 Node c $ tail ++ [Node o []] -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
+               ] ++ scGen otherCoords) -- TODO: check that scGen eaten all coords?
     ]
   where
     (bbCoords, otherCoords) = splitAt 4 coords
