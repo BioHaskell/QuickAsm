@@ -9,6 +9,9 @@ module FragReplacement( randomV
                       , replaceFragment
                       , changeAt
                       , replaceBackboneDihedrals
+                      , metropolisCriterion
+                      , checkMetropolisCriterionR
+                      , checkMetropolisCriterion
                       ) where
 
 import System.Environment
@@ -98,5 +101,23 @@ replaceBackboneDihedrals ::  [Double] -> TorsionTopo -> TorsionTopo
 replaceBackboneDihedrals []     t               = t
 replaceBackboneDihedrals (d:ds) (Node c forest) = Node (c { tDihedral = d })
                                                        $ mapLastElement (replaceBackboneDihedrals ds) forest
-       
+-- | Minimum starting temperature for annealing.
+min_starting_temp = 1.0
+
+-- | Returns a probability of keeping a new model, and discarding old
+-- model in Metropolis Monte-Carlo sampling.
+metropolisCriterion temp oldScore newScore = if diff < 0
+                                               then 1.0
+                                               else exp (-(min (diff/temp) maxScore))
+  where
+    diff     = newScore - oldScore
+    maxScore = 100
+
+-- Checks Metropolis criterion, if given parameters, and a random number generator.
+checkMetropolisCriterionR temp old new gen = (r < metropolisCriterion temp old new, gen')
+  where
+    (r, gen') = randomR (0.0, 1.0) gen
+
+-- Checks Metropolis
+checkMetropolisCriterion temp old new gen = getStdRandom $ checkMetropolisCriterionR temp old new
 
