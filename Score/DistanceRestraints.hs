@@ -16,7 +16,7 @@ import qualified Data.IntMap        as IMap
 import qualified Rosetta.Restraints as R
 
 import Topo
-import Score.ScoreSet(ScoringFunction(..))
+import Score.ScoringFunction(ScoringFunction(..))
 
 -- | Contains a restraint with a precomputed atom number
 data Restraint = Restraint { source                 :: !R.Restraint

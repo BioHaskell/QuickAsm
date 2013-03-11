@@ -1,27 +1,18 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification, OverloadedStrings #-}
 -- | Implementation of polymorphic lists of scoring functions.
-module Score.ScoreSet( ScoringFunction (..)
-                     , makeScoreSet
+module Score.ScoreSet( makeScoreSet
+                     , makeAllScores
                      ) where
+
+import Score.ScoringFunction
+import Score.DistanceRestraints(makeDistanceScore)
+import Score.Steric            (stericScore)
 
 import qualified Data.ByteString.Char8 as BS
 
-import Topo(TorsionTopo, CartesianTopo)
+--import Topo(TorsionTopo, CartesianTopo)
 
--- TODO: Move ScoringFunction to a separate module? (Than makeScoreSet.)
--- TODO: add function that scores a cross of two models.
--- | Actions available for any generic scoring function or potential.
-data ScoringFunction = ScoringFunction {
-    -- | Computes a value of a scoring function.
-    score       :: (TorsionTopo, CartesianTopo) -> Double
-    -- | Shows details of scoring function components.
-  , scoreShow   :: (TorsionTopo, CartesianTopo) -> [BS.ByteString]
-    -- | Shows a label used when showing this function along with others
-  , scoreLabel  :: BS.ByteString
-  , scores      :: (TorsionTopo, CartesianTopo) -> [(BS.ByteString, Double)]
-  , components  :: [ScoringFunction]
-  }
-
+-- Makes a compound score out of a set of components, and assigns a name to it.
 makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
 makeScoreSet name components =
   ScoringFunction {
@@ -33,4 +24,7 @@ makeScoreSet name components =
   }
   where
     values         arg = map (flip score arg) components 
+
+makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
+                                          , stericScore            ]
 

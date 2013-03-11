@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, OverloadedStrings #-}
 module Score.Steric( crossClashCheck
                    , selfClashCheck
                    , crossClashCheck'
@@ -16,7 +16,7 @@ import Data.Tree(flatten)
 import Topo
 
 import AtomParams
-import Score.ScoreSet
+import Score.ScoringFunction(ScoringFunction(..))
 
 -- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
