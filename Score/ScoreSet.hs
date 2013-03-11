@@ -6,8 +6,7 @@ module ScoreSet( ScoringFunction (..)
 
 import qualified Data.ByteString.Char8 as BS
 
-import Topo
-
+import Topo(TorsionTopo, CartesianTopo)
 
 -- | Actions available for any generic scoring function or potential.
 data ScoringFunction = ScoringFunction {
@@ -21,6 +20,7 @@ data ScoringFunction = ScoringFunction {
   , components  :: [ScoringFunction]
   }
 
+makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
 makeScoreSet name components =
   ScoringFunction {
     score      = sum . values 
