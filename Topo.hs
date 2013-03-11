@@ -37,7 +37,7 @@ import Data.Tree.Util
 import Data.Traversable(mapM)
 import Data.List(intercalate, group)
 
-import Control.Monad.State(State, get, modify, evalState)
+import Control.Monad.State(State, get, modify, evalState, void)
 import qualified Data.ByteString.Char8 as BS
 import Data.Vector.V3
 import Data.Vector.Class
@@ -147,9 +147,9 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
 -- Also accepts optional argument for next residue in chain, and sidechain generator (from coordinate list.)
 proteinBackboneC resName resId coords scGen tail =
     Node n [
-      Node ca ([ -- TODO: add sidechain
-        Node c $ tail ++ [Node o []] -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
-      ] ++ scGen otherCoords) -- TODO: check that scGen eaten all coords?
+      Node ca ( -- TODO: add sidechain
+        Node c (tail ++ [Node o []]) -- TODO: should O connection have 0 degree dihedral, and reflect bond topology?
+      ):scGen otherCoords -- TODO: check that scGen eaten all coords?
     ]
   where
     (bbCoords, otherCoords) = splitAt 4 coords
@@ -157,6 +157,7 @@ proteinBackboneC resName resId coords scGen tail =
                             ["N", "CA", "C", "O"]
                             (take 4 coords)-- TODO: screwed, omega places NEXT "N" atom!!!
 
+-- TODO: OXT at the end of Cartesian backbone
 -- | Constructs a Cartesian backbone, from a given string of residues names,
 -- and coordinate lists in an order in which topology is supposed to create them.
 constructCartesianBackbone :: [(String, [Vector3])] -> CartesianTopo
@@ -201,7 +202,14 @@ onlyProteinBackboneT resName resId psiPrev omegaPrev phi psi tail = proteinBackb
 -- | Construct a protein backbone from sequence of residue codes and angles:
 --   (residue name, phi, psi, omega).
 constructBackbone :: [(String, Double, Double, Double)] -> TorsionTopo
-constructBackbone recs = head $ constructBackbone' recs []
+constructBackbone recs = head $ constructBackbone' recs [cterminus]
+  where
+    cterminus = tOXT terResName (length recs) terOmega
+    (terResName, _, _, terOmega) = last recs
+
+-- | Addes OXT at the end
+tOXT resName resId omega = Node (atWithDihe resName resId "OXT" omega) []
+
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 
 -- | Build another node of a protein backbone from sequence of residue
@@ -231,11 +239,11 @@ printPDBAtom outh (Cartesian { cPos     = position
                              , cResName = resName
                              , cResId   = resNum
                              , cAtId    = atNum    }) =
-   hPrintf outh
-           "ATOM  %5d%3s   %3s A%4d     %7.3f %7.3f %7.3f  1.00  0.00\n"
-              atNum atName resName resNum (v3x position)
-                                          (v3y position)
-                                          (v3z position) >> return ()
+   void $ hPrintf outh
+             "ATOM  %5d%3s   %3s A%4d     %7.3f %7.3f %7.3f  1.00  0.00\n"
+                atNum atName resName resNum (v3x position)
+                                            (v3y position)
+                                            (v3z position)
 
 -- | Takes two most recent consecutive bond vectors, and current position
 --   as a tuple, and a `Torsion` record to produce Cartesian position.
@@ -248,12 +256,12 @@ computeNextCartesian (prevDir, curDir, curPos) torsion =
   where
     nextPos = curPos + tBondLen torsion *| nextDir
     ex = vnormalise $ ey `vcross` ez
-    ey = vnormalise $ (prevDir) `vperpend` ez
-    ez = vnormalise $ (curDir) -- normalization unnecessary?
+    ey = vnormalise $ prevDir `vperpend` ez
+    ez = vnormalise   curDir -- normalization unnecessary?
     dihe = degree2radian $ tDihedral torsion -- due to reversed directionality of ey
     ang  = degree2radian $ tPlanar   torsion
     --nextDir  = vnormalise $ ez |* (-cos ang) + (ey |* (-cos dihe) + ex |* (sin dihe))
-    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* (sin dihe))
+    nextDir  = vnormalise $ ez |* (-cos ang) + sin ang *| (ey |* (-cos dihe) + ex |* sin dihe)
     cart     = (xferC torsion) { cPos = nextPos }  
     
 -- | Converts a topology in `Torsion` angles to topology in `Cartesian` coordinates.

@@ -3,7 +3,7 @@ module Main where
 import qualified Data.ByteString.Char8 as BS
 import System.Environment
 import Control.Exception (assert)
-import Control.Monad     (forM)
+import Control.Monad     (forM_, mapM_)
 import Data.Tree(flatten   )
 import Numeric  (showFFloat)
 
@@ -17,9 +17,9 @@ visualizeClash (a, b) = show a ++ "X:X" ++ show b ++ " = " ++ showFFloat (Just 3
 main = do args <- getArgs
           assert (length args == 1) $ return () -- TODO: define assertM?
           mdls <- processSilentFile $ head args
-          forM mdls $ \mdl -> do let cart = computePositions $ silentModel2TorsionTopo mdl
-                                 let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten $ cart
-                                 putStrLn $ show (length clashes) ++ " steric clashes detected in " ++ BS.unpack (name mdl)
-                                 mapM putStrLn clashes
+          forM_ mdls $ \mdl -> do let cart = computePositions $ silentModel2TorsionTopo mdl
+                                  let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten cart
+                                  putStrLn $ show (length clashes) ++ " steric clashes detected in " ++ BS.unpack (name mdl)
+                                  mapM_ putStrLn clashes
           return ()
           

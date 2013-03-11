@@ -5,6 +5,7 @@ import System.IO(hPutStrLn, stderr)
 import qualified Data.ByteString.Char8 as BS
 import Data.List(sortBy, find)
 import Data.Tree(flatten)
+import Data.Function(on)
 import Data.Either(partitionEithers)
 import Control.Monad(forM_)
 import Control.DeepSeq(NFData(..), deepseq)
@@ -78,19 +79,17 @@ atCmp a     b   = error $ "Still undefined atom comparison within topology: " ++
 -- | Matches two atom descriptions. Reports an error if atom names and
 -- residue ids are the same, but residue names are not.
 match :: (BS.ByteString, BS.ByteString, Int) -> (BS.ByteString, BS.ByteString, Int) -> Bool
-match a@(res1, at1, resid1) b@(res2, at2, resid2) = if (at1, resid1) /= (at2, resid2)
-                                                  then False
-                                                  else if res1 == res2
-                                                         then True
-                                                         else if (res1 == "") || (res2 == "")
-                                                                then True
-                                                                else error $ "Mismatch in residue names: " ++ show a ++ " vs " ++ show b
+match a@(res1, at1, resid1) b@(res2, at2, resid2) | (at1, resid1) /= (at2, resid2) = False
+match a@(res1, at1, resid1) b@(res2, at2, resid2) | res1 == res2                   = True
+match a@(res1, at1, resid1) b@(res2, at2, resid2) | res1 == "" || res2 == ""       = True
+match a@(res1, at1, resid1) b@(res2, at2, resid2)                                  =
+                                                  error $ "Mismatch in residue names: " ++ show a ++ " vs " ++ show b
 
 -- | Tries to match Cartesian atom against
 -- Rosetta.DistanceRestraints.Restraint atom id.
 matchTopoAtId :: R.AtomId -> Cartesian -> Bool
-matchTopoAtId atid cart = match (BS.pack $ cResName $ cart, BS.pack $ cAtName $ cart, cResId  cart)
-                                (R.resName            atid,           R.atName  atid, R.resId atid)
+matchTopoAtId atid cart = match (BS.pack $ cResName cart, BS.pack $ cAtName  cart, cResId  cart)
+                                (R.resName          atid,           R.atName atid, R.resId atid)
 
 prepareRestraintsFile :: CartesianTopo -> FilePath -> IO RestraintSet
 prepareRestraintsFile mdl fname = do (rset, errs) <- flip precomputeOrder mdl `fmap` R.processRestraintsFile fname
@@ -113,14 +112,14 @@ precomputeOrder restrs cartopo = ( RSet { byLeftAtom  = sortByKey leftAt  restra
     makeRestraint :: R.Restraint -> Either String Restraint
     makeRestraint rRestr = do left  <- findAt $ R.at1 rRestr
                               right <- findAt $ R.at2 rRestr
-                              return $ Restraint { source   = rRestr
-                                                 , leftAt   = left
-                                                 , rightAt  = right
-                                                 , leftRes  = R.resId $ R.at1 rRestr
-                                                 , rightRes = R.resId $ R.at2 rRestr
-                                                 , distance = R.goal rRestr
-                                                 , num      = 0 -- to assign later with renumbering
-                                                 }
+                              return Restraint { source   = rRestr
+                                               , leftAt   = left
+                                               , rightAt  = right
+                                               , leftRes  = R.resId $ R.at1 rRestr
+                                               , rightRes = R.resId $ R.at2 rRestr
+                                               , distance = R.goal rRestr
+                                               , num      = 0 -- to assign later with renumbering
+                                               }
       where
         findAt :: R.AtomId -> Either String Int
         findAt at = case find (matchTopoAtId at) topoOrder of
@@ -134,7 +133,7 @@ precomputeOrder restrs cartopo = ( RSet { byLeftAtom  = sortByKey leftAt  restra
 
 -- TODO: move to Util, add QuickCheck
 -- | Sorts by a given key (and standard comparison.)
-sortByKey k = sortBy (\x y -> k x `compare` k y)
+sortByKey k = sortBy (compare `on` k)
 
 -- | Finds all atom positions, taking as argument a selector, restraint
 -- list, and Cartesian topology.
@@ -171,7 +170,7 @@ scoreDistanceRestraints rset carTopo = sqrt $ V.foldl' addSq 0.0 $ checkDistance
 
 -- NOTE: due to necessity of renumbering, prepareRestraintSet is better way to make subrange query!
 subrange :: RestraintSet -> (Int, Int) -> RestraintSet
-subrange rset (from, to) = assertions $
+subrange rset (from, to) = assertions
                              RSet { byLeftAtom  = map renum lefts
                                   , byRightAtom = map renum rights
                                   , byNum       = map renum toRenum

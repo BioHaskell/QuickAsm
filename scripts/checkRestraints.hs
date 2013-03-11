@@ -23,14 +23,14 @@ main = do args <- getArgs
                                        exitFailure 
           let [ silentInputFilename, distanceRestraintsInput ] = args
           sMdls <- processSilentFile silentInputFilename
-          let cMdls = map (computePositions . silentModel2TorsionTopo) sMdls
-          let names = map name sMdls
+          let cMdls  = map (computePositions . silentModel2TorsionTopo) sMdls
+          let names  = map name sMdls
           let fstMdl = head cMdls
           rset <- prepareRestraintsFile fstMdl distanceRestraintsInput
-          forM (zip names cMdls) $ \(nam,cart) -> do let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten $ cart
-                                                     mapM putStrLn clashes
-                                                     putStrLn $ show (length clashes) ++ " steric clashes detected in " ++ BS.unpack nam
-                                                     let dists = checkDistanceRestraints rset cart
-                                                     mapM print dists
+          forM_ (zip names cMdls) $ \(nam,cart) -> do let clashes = Prelude.map visualizeClash $ selfClashCheck $ flatten cart
+                                                      mapM_ putStrLn clashes
+                                                      putStrLn $ show (length clashes) ++ " steric clashes detected in " ++ BS.unpack nam
+                                                      let dists = checkDistanceRestraints rset cart
+                                                      mapM_ print dists
           return ()
           

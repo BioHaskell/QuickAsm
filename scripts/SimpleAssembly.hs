@@ -5,7 +5,7 @@ import System.Environment(getArgs)
 import Rosetta.Silent
 import Topo
 
-initialize_topology = undefined
+initializeTopology  = undefined
 samplingStep        = undefined
 writeSilentModel    = undefined
 writeCartesianModel = undefined
@@ -15,7 +15,7 @@ steps=1000
 -- TODO: scoring?
 
 main = do [fastaInput, fragmentInput, silentOutput, pdbOutput] <- getArgs
-          topo <- initialize_topology fastaInput
+          topo <- initializeTopology fastaInput
           result <- iterate samplingStep topo !! steps
           writeSilentModel silentOutput result
           writeCartesianModel pdbOutput . computePositions $ result

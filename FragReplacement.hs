@@ -102,7 +102,7 @@ replaceBackboneDihedrals []     t               = t
 replaceBackboneDihedrals (d:ds) (Node c forest) = Node (c { tDihedral = d })
                                                        $ mapLastElement (replaceBackboneDihedrals ds) forest
 -- | Minimum starting temperature for annealing.
-min_starting_temp = 1.0
+minStartingTemp = 1.0
 
 -- | Returns a probability of keeping a new model, and discarding old
 -- model in Metropolis Monte-Carlo sampling.

@@ -24,13 +24,13 @@ makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
 makeScoreSet name components =
   ScoringFunction {
     score      = sum . values 
-  , scoreShow  = \arg -> concatMap (flip scoreShow arg) components 
+  , scoreShow  = \arg -> concatMap (`scoreShow` arg) components 
   , scoreLabel = name
   , components = components
-  , scores     = \arg -> zip (map scoreLabel components) (values arg)
+  , scores     = zip (map scoreLabel components) . values
   }
   where
-    values         arg = map (flip score arg) components 
+    values         arg = map (`score` arg) components 
 
 makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
                                           , stericScore            ]

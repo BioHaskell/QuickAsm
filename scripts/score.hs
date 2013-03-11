@@ -45,7 +45,7 @@ main = do args <- getArgs
           let fstMdl = head cMdls
           rset' <- time     "Preparing restraint set"              $ prepareRestraintsFile fstMdl distanceRestraintsInput
           rset  <- timePure "Extracting subrange of restraint set" $ maybeSubrange rset' maybeRestriction
-          forM_ (zip names cMdls) $ \(nam, cart) -> do clashCount <- timePure ("Steric    scoring " ++ BS.unpack nam) $
+          forM_ (zip names cMdls) $ \(nam, cart) -> do clashCount <- timePure ("Steric    scoring " ++ BS.unpack nam)
                                                                                   ((fromIntegral $ length $ selfClashCheck $ flatten cart) :: Double)
                                                        distScore  <- timePure ("Restraint scoring " ++ BS.unpack nam) $
                                                                                   scoreDistanceRestraints rset cart

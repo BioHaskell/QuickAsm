@@ -28,9 +28,8 @@ cartesian2octree = O.fromList . map prepare
 -- that are closer than the radius from an argument atom
 -- (without filtering out those involved in covalent bonds.)
 atomClashCheck :: Double -> O.Octree Cartesian -> Cartesian -> [Cartesian]
-atomClashCheck percent oct cart = filter (vdwClash cart) $ ats 
+atomClashCheck percent oct cart = filter (vdwClash cart) (atomsWithinRange oct radius cart)
   where
-    ats = map snd . O.withinRange oct radius . cPos $ cart
     cRadius = atomicRadius . atomType . cAtName
     radius = (cRadius cart + maxAtomicRadius) * percent
     at1 `vdwClash` at2 = cPos at1 `O.dist` cPos at2 < (cRadius at1 + cRadius at2) * percent
@@ -39,15 +38,15 @@ atomClashCheck percent oct cart = filter (vdwClash cart) $ ats
         pos2 = cPos at2
 
 atomClashScore :: Double -> O.Octree Cartesian -> Cartesian -> Double
-atomClashScore percent oct cart = sum $ map (vdwScore cart) $ ats
+atomClashScore percent oct cart = sum $ map (vdwScore cart) (atomsWithinRange oct radius cart)
   where
-    ats = map snd . O.withinRange oct radius . cPos $ cart
     cRadius = atomicRadius . atomType . cAtName
     radius = (cRadius cart + maxAtomicRadius) * percent
     at1 `vdwScore` at2 = if notConnected (at1, at2) && notSame (at1, at2)
                            then min 0.0 $ (cRadius at1 + cRadius at2) * percent - (cPos at1 `O.dist` cPos at2)
                            else     0.0
 
+atomsWithinRange oct radius cart = map snd . O.withinRange oct radius . cPos $ cart
 
 
 notConnected (at1, at2) = notSame (at1, at2) && not (covalentlyBound at1 at2)
