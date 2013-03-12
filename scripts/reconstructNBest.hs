@@ -3,11 +3,12 @@ module Main where
 
 import System.IO
 import System.Environment
+import System.Exit(exitFailure)
 import System.FilePath((</>), (<.>))
 import System.Directory(createDirectoryIfMissing)
 import qualified Data.ByteString.Char8 as BS
 import Data.List(minimumBy)
-import Control.Monad(forM)
+import Control.Monad(forM, when)
 
 import Rosetta.Silent
 import Rosetta.PyMol
@@ -17,7 +18,13 @@ import Topo
 model2topo :: SilentModel -> CartesianTopo
 model2topo = computePositions . silentModel2TorsionTopo
 
-main = do [number, silentInputFilename, pdbOutputDir] <- getArgs
+printUsage = do hPutStrLn stderr "Usage: reconstructBest <input.out> <output.pdb>"
+                exitFailure
+
+--   TODO: optional trailing arguments - extract only given decoys
+main = do lenArgs <- length `fmap` getArgs 
+          when (lenArgs /= 3) printUsage
+          [number, silentInputFilename, pdbOutputDir] <- getArgs
           createDirectoryIfMissing True pdbOutputDir
           let ((n :: Int, []):_) = reads number
           mdls <- processSilentFile silentInputFilename

@@ -7,8 +7,8 @@ idealGeom "CA" = ( 121.7, 1.458)
 idealGeom "C"  = ( 111.2, 1.523)
 -- NOTE: for backbone reconstruction to match ROSETTA's, one has to be extremely careful about above angles!
 idealGeom "O"     = (-123.0, 1.231)
-idealGeom "OXT"   = (116.2, 1.231) -- TODO: check, now bond length of "O", and angle of "N".
-idealGeom ('C':_) = (111.2, 1.523) -- assume it is similar to CA-C bond.
+idealGeom "OXT"   = ( 120.0, 1.200) -- TODO: check, now bond length of "O", and angle of "N".
+idealGeom ('C':_) = ( 111.2, 1.523) -- assume it is similar to CA-C bond.
 idealGeom a       = error $ "Unknown bond geometry for atom " ++ show a
 
 -- TODO: add sidechain chi angles and geometry from:
