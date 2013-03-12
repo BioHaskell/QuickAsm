@@ -19,6 +19,7 @@ module Topo( Tree          (..)
            , showCartesian
            , showCartesianTopo
 
+           -- Backbone inspection
            , backboneDihedrals
            , backbonePlanars
            , backbone
@@ -26,6 +27,13 @@ module Topo( Tree          (..)
            -- conversions from ROSETTA input
            , silentModel2TorsionTopo
            , torsionTopo2SilentModel 
+           
+           -- atom and residue renumbering
+           , renumberResiduesT
+           , renumberResiduesC
+
+           , renumberAtomsT
+           , renumberAtomsC
            ) where
 
 import System.IO
@@ -36,6 +44,7 @@ import Data.Tree
 import Data.Tree.Util
 import Data.Traversable(mapM)
 import Data.List(intercalate, group)
+import Control.Monad(when)
 
 import Control.Monad.State(State, get, modify, evalState, void)
 import qualified Data.ByteString.Char8 as BS
@@ -73,6 +82,22 @@ data Cartesian = Cartesian { cPos     :: !Vector3
                            , cResId   :: !Int
                            }
 
+-- * Extracting an atom identifier that should be unique within a topology.
+-- | Extracts atom identifiers from Cartesian record.
+cartesianId :: Cartesian -> (Int, Int, String, String)
+cartesianId c = (cAtId c, cResId c, cAtName c, cResName c)
+
+-- | Extracts atom identifiers from Torsion record.
+torsionId   :: Torsion   -> (Int, Int, String, String)
+torsionId   t = (tAtId t, tResId t, tAtName t, tResName t)
+
+-- | Molecule topology in torsion angles.
+type TorsionTopo   = Tree Torsion
+
+-- | Molecule topology in cartesian coordinates.
+type CartesianTopo = Tree Cartesian
+
+-- * Visualization
 instance Show Cartesian where
   show = showCartesian
 
@@ -86,42 +111,24 @@ showCartesian (Cartesian { cPos     = Vector3 x y z
     where
       Just s = printf "ATOM  %5d  %-3s%4s A %3d    %8.3f%8.3f%8.3f  1.00  0.00" atId atName resName resId x y z
 
--- | Extracts atom identifiers from Cartesian record.
-cartesianId :: Cartesian -> (Int, Int, String, String)
-cartesianId c = (cAtId c, cResId c, cAtName c, cResName c)
-
--- | Extracts atom identifiers from Torsion record.
-torsionId   :: Torsion   -> (Int, Int, String, String)
-torsionId   t = (tAtId t, tResId t, tAtName t, tResName t)
-
 -- | Shows Cartesian topology as PDB `ATOM` coordinate records.
 showCartesianTopo :: CartesianTopo -> String
 showCartesianTopo = intercalate "\n" . map showCartesian . Data.Tree.flatten
 
--- | Molecule topology in torsion angles.
-type TorsionTopo   = Tree Torsion
+-- | Prints Cartesian as PDB ATOM record to a given output file.
+printPDBAtom :: Handle -> Cartesian -> IO ()
+printPDBAtom outh (Cartesian { cPos     = position
+                             , cAtName  = atName
+                             , cResName = resName
+                             , cResId   = resNum
+                             , cAtId    = atNum    }) =
+   void $ hPrintf outh
+             "ATOM  %5d%3s   %3s A%4d     %7.3f %7.3f %7.3f  1.00  0.00\n"
+                atNum atName resName resNum (v3x position)
+                                            (v3y position)
+                                            (v3z position)
 
--- | Molecule topology in cartesian coordinates.
-type CartesianTopo = Tree Cartesian
-
--- | Transfer common attributes to Cartesian record from Torsion record.
-xferC ::  Torsion -> Cartesian
-xferC tors = Cartesian { cPos     = 0
-                       , cAtName  = tAtName  tors
-                       , cResName = tResName tors
-                       , cAtId    = tAtId    tors
-                       , cResId   = tResId   tors }
-
--- | Transfer common attributes to Torsion record from Cartesian record.
-xferT ::  Cartesian -> Torsion
-xferT cart = Torsion { tPlanar   = 0
-                     , tDihedral = 0
-                     , tBondLen  = 0
-                     , tAtName   = cAtName  cart
-                     , tAtId     = cAtId    cart
-                     , tResName  = cResName cart
-                     , tResId    = cResId   cart }
-
+-- * Backbone construction from residue sequence and coordinates.
 -- | Creates protein backbone from residue name, identifier and torsion angles.
 --   Also accepts an optional argument for next residue in chain.
 proteinBackboneT :: String -> Int -> -- residue name and number
@@ -232,19 +239,26 @@ constructBackbone' recs = foldr1 (.) $ zipWith3 buildResidue prevRecs recs [1..]
 
 -- TODO: Method that gives unique atom numbers
 
--- | Prints Cartesian as PDB ATOM record to a given output file.
-printPDBAtom :: Handle -> Cartesian -> IO ()
-printPDBAtom outh (Cartesian { cPos     = position
-                             , cAtName  = atName
-                             , cResName = resName
-                             , cResId   = resNum
-                             , cAtId    = atNum    }) =
-   void $ hPrintf outh
-             "ATOM  %5d%3s   %3s A%4d     %7.3f %7.3f %7.3f  1.00  0.00\n"
-                atNum atName resName resNum (v3x position)
-                                            (v3y position)
-                                            (v3z position)
+-- * Conversion between Torsion and Cartesian atom.
+-- | Transfer common attributes to Cartesian record from Torsion record.
+xferC ::  Torsion -> Cartesian
+xferC tors = Cartesian { cPos     = 0
+                       , cAtName  = tAtName  tors
+                       , cResName = tResName tors
+                       , cAtId    = tAtId    tors
+                       , cResId   = tResId   tors }
 
+-- | Transfer common attributes to Torsion record from Cartesian record.
+xferT ::  Cartesian -> Torsion
+xferT cart = Torsion { tPlanar   = 0
+                     , tDihedral = 0
+                     , tBondLen  = 0
+                     , tAtName   = cAtName  cart
+                     , tAtId     = cAtId    cart
+                     , tResName  = cResName cart
+                     , tResId    = cResId   cart }
+
+-- * Conversion between Torsion angle and Cartesian coordinate topology.
 -- | Takes two most recent consecutive bond vectors, and current position
 --   as a tuple, and a `Torsion` record to produce Cartesian position.
 computeNextCartesian :: (Vector3, Vector3, Vector3) ->
@@ -296,21 +310,48 @@ computeTorsions topo = descending computeNextTorsion initialInputs topo
     initialInputs = (-bv, bv, cPos b) -- something will be wrong for first two...
 
 -- | Take a list of atom records, and Cartesian topology of a chain.
+-- TODO: IMPLEMENT IT!!!
 reconstructTopology = undefined
 
+-- | Residue descriptor for TorsionTopo
+tDescriptor tors = (tResName tors, tResId tors)
+
+
+-- * Backbone inspection
 -- | Returns a list of topology nodes along topology backbone
 -- (which contains only first elements of forest list.)
+backbone ::  Tree t -> [t]
 backbone (Node a []) = [a]
 backbone (Node a bb) = a:backbone (last bb)
 
 -- | Returns a list of planar angles along the topology backbone.
+backbonePlanars ::  Tree Torsion -> [Double]
 backbonePlanars   = tail . map tPlanar   . backbone
 
 -- | Returns a list of dihedral angles along the topology backbone.
+backboneDihedrals ::  Tree Torsion -> [Double]
 backboneDihedrals = tail . map tDihedral . backbone
 
 -- TODO: move unit tests to this module
 -- TODO: add silent2PDB script
+
+-- * Residue and atom renumbering
+-- | Renumbers residues from 1 within topology with a given "setter" and "getter" for residue id.
+renumberResiduesWith :: (Num b, Eq b) => (a -> b -> a) -> (a -> b) -> Tree a -> Tree a
+renumberResiduesWith setter getter t = evalState (mapM renum t) (1, getter $ rootLabel t)
+  where
+    renum a = do (i, prevNum) <- get
+                 let newNum = getter a
+                 when (newNum /= prevNum) $ modify (\(i, prevNum)-> (i+1, newNum))
+                 return $ a `setter` i
+
+-- | Renumbers residues from a given number within Cartesian topology.
+renumberResiduesC ::  CartesianTopo -> CartesianTopo
+renumberResiduesC = renumberResiduesWith (\a i -> a { cResId = i}) cResId
+
+-- | Renumbers residues from a given number within Torsion   topology.
+renumberResiduesT ::  TorsionTopo -> TorsionTopo
+renumberResiduesT = renumberResiduesWith (\a i -> a { tResId = i}) tResId
 
 -- | Numbers atoms starting from 1 within topology with a given "setter".
 renumberAtomsWith :: (Num b) => (a -> b -> a) -> Tree a -> Tree a
@@ -320,15 +361,19 @@ renumberAtomsWith setter t = evalState (mapM renum t) 1
                  modify (+1)
                  return $ a `setter` i
 
--- | Renumbers Cartesian atoms within `CartesianTopo` starting from 1.
+-- | Renumbers Cartesian atoms within `CartesianTopo` starting from a given number.
+renumberAtomsC :: CartesianTopo -> CartesianTopo
 renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
 
--- | Renumbers Torsion atoms within `TorsionTopo` starting from 1.
+-- | Renumbers Torsion atoms within `TorsionTopo` starting from from a given number.
+renumberAtomsT :: TorsionTopo -> TorsionTopo
 renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
 --_test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
 
+-- * Convertion from and to `SilentModel`.
 -- | Converts a ROSETTA `SilentModel` to a Torsion topology.
+silentModel2TorsionTopo ::  SilentModel -> TorsionTopo
 silentModel2TorsionTopo = renumberAtomsT . constructBackbone . prepare
   where
     prepare mdl = zipWith extractInput
@@ -350,8 +395,6 @@ torsionTopo2residueDescriptors = map head . group . map tDescriptor . backbone
       where
         desc' = descriptor d
 -}
-
-tDescriptor tors = (tResName tors, tResId tors)
 
 -- | Converts a `TorsionTopo` to a `SilentModel` with dihedrals.
 torsionTopo2SilentModel topo = SilentModel { fastaSeq          = BS.pack resSeq
