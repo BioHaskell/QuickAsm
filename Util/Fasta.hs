@@ -8,7 +8,7 @@ import Data.Tuple(swap)
 -- NOTE: copied from hPDB temporarily, until it is released
 
 -- | Codebook matching single and three-letter residue codes.
-codebook_standard_protein = [
+codebookStandardProtein = [
   ('A', "ALA"),
   ('C', "CYS"),
   ('D', "ASP"),
@@ -34,19 +34,20 @@ codebook_standard_protein = [
   ('Y', "TYR")]
 
 -- | Dictionary of codes created from `codebook_standard_protein`.
-fastacode2resnameDictionary = Map.fromList codebook_standard_protein
+fastacode2resnameDictionary = Map.fromList codebookStandardProtein
 
 -- | Dictionary of residue names created from reversed `codebook_standard_protein`.
-resname2fastacodeDictionary = Map.fromList $ map swap codebook_standard_protein
+resname2fastacodeDictionary = Map.fromList $ map swap codebookStandardProtein
 
 -- | Returns PDB three-letter code for a given single-letter FASTA code.
-fastacode2resname code    = Map.findWithDefault defaultResname   code    fastacode2resnameDictionary
+fastacode2resname code    = Map.findWithDefault defaultResname code    fastacode2resnameDictionary
 
 -- | Returns PDB single-letter FASTA code for a given three-letter code.
-resname2fastacode resname = Map.findWithDefault defaultResCode   resname resname2fastacodeDictionary
+resname2fastacode resname = Map.findWithDefault defaultResCode resname resname2fastacodeDictionary
 
 -- | Default three-letter code returned for unknown aminoacid code.
 defaultResname   = "UNK"
 
 -- | Default single-letter code returned for unknown aminoacid name.
 defaultResCode   = 'X'
+

@@ -5,7 +5,7 @@ import System.Environment
 import System.IO(hPutStrLn, stderr)
 import System.Exit(exitFailure)
 import Control.Exception (assert)
-import Control.Monad     (forM, when)
+import Control.Monad     (forM_, when)
 import Data.Tree(flatten   )
 import Numeric  (showFFloat)
 

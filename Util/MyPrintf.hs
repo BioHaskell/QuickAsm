@@ -13,9 +13,6 @@
 -- A C printf like formatter.
 --
 -----------------------------------------------------------------------------
-
-{-# Language CPP #-}
-
 module Util.MyPrintf(
    printf, hPrintf,
    PrintfType, HPrintfType, PrintfArg, IsChar
@@ -255,7 +252,7 @@ fmtu b _    (UChar c)      = itosb b (toInteger (fromEnum c))
 fmtu _ _ _                 = baderr
 
 integral_prec :: Int -> String -> String
-integral_prec prec integral = (replicate (prec - (length integral)) '0') ++ integral
+integral_prec prec integral = replicate (prec - length integral) '0' ++ integral
 
 toint :: UPrintf -> Int
 toint (UInteger _ i) = fromInteger i

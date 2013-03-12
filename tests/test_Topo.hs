@@ -81,7 +81,7 @@ backboneAtomNamesC = map cAtName . backbone
 every :: Int -> [a] -> [a] 
 every n l = head l:drop n l
 
-exampleDecoy' = zipWith (,) (map getResName $ every 4 exampleDecoy) (quadruples exampleCoords)
+exampleDecoy' = map getResName (every 4 exampleDecoy) `zip`  quadruples exampleCoords
   where
     getResName (_, resName, _, _, _, _) = resName
 
@@ -95,10 +95,10 @@ origCoord = constructCartesianBackbone exampleDecoy'
 
 main = do return () --print $ tree
           let cartopo = computePositions tree
-          putStrLn $ showCartesianTopo $ cartopo
+          putStrLn $ showCartesianTopo cartopo
           let retors = computeTorsions cartopo
           putStrLn   "Input dihedrals:"
-          putStrLn $ showFloatTriples $ sourceTriples $ exampleTorsions
+          putStrLn $ showFloatTriples $ sourceTriples exampleTorsions
           putStrLn   "Generated dihedrals:"
           --print $ triples $ backboneDihedrals retors
           putStrLn $ showFloatTriples $ tail $ backboneDihedrals retors
@@ -106,7 +106,7 @@ main = do return () --print $ tree
           putStrLn $ showFloatTriples $ backbonePlanars retors
           putStrLn   "Original  planar angles:"
           putStrLn $ showFloatTriples $ backbonePlanars $ computeTorsions origCoord
-          putStrLn $ "Generated backbone atoms:" ++ show (backboneAtomNamesT retors)
+          putStrLn $ "Generated backbone atoms:" ++ show (backboneAtomNamesT retors   )
           putStrLn $ "Original  backbone atoms:" ++ show (backboneAtomNamesC origCoord)
           putStrLn   "Source bond vectors:"
           putStrLn $ showVectors $ bondVectors' exampleCoords
