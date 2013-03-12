@@ -325,11 +325,11 @@ backbone (Node a []) = [a]
 backbone (Node a bb) = a:backbone (last bb)
 
 -- | Returns a list of planar angles along the topology backbone.
-backbonePlanars ::  Tree Torsion -> [Double]
+backbonePlanars :: TorsionTopo -> [Double]
 backbonePlanars   = tail . map tPlanar   . backbone
 
 -- | Returns a list of dihedral angles along the topology backbone.
-backboneDihedrals ::  Tree Torsion -> [Double]
+backboneDihedrals :: TorsionTopo -> [Double]
 backboneDihedrals = tail . map tDihedral . backbone
 
 -- TODO: move unit tests to this module
@@ -337,8 +337,8 @@ backboneDihedrals = tail . map tDihedral . backbone
 
 -- * Residue and atom renumbering
 -- | Renumbers residues from 1 within topology with a given "setter" and "getter" for residue id.
-renumberResiduesWith :: (Num b, Eq b) => (a -> b -> a) -> (a -> b) -> Tree a -> Tree a
-renumberResiduesWith setter getter t = evalState (mapM renum t) (1, getter $ rootLabel t)
+renumberResiduesWith :: (a -> Int -> a) -> (a -> Int) -> Int -> Tree a -> Tree a
+renumberResiduesWith setter getter initial t = evalState (mapM renum t) (initial, getter $ rootLabel t)
   where
     renum a = do (i, prevNum) <- get
                  let newNum = getter a
@@ -346,27 +346,27 @@ renumberResiduesWith setter getter t = evalState (mapM renum t) (1, getter $ roo
                  return $ a `setter` i
 
 -- | Renumbers residues from a given number within Cartesian topology.
-renumberResiduesC ::  CartesianTopo -> CartesianTopo
+renumberResiduesC :: Int -> CartesianTopo -> CartesianTopo
 renumberResiduesC = renumberResiduesWith (\a i -> a { cResId = i}) cResId
 
 -- | Renumbers residues from a given number within Torsion   topology.
-renumberResiduesT ::  TorsionTopo -> TorsionTopo
+renumberResiduesT :: Int -> TorsionTopo -> TorsionTopo
 renumberResiduesT = renumberResiduesWith (\a i -> a { tResId = i}) tResId
 
 -- | Numbers atoms starting from 1 within topology with a given "setter".
-renumberAtomsWith :: (Num b) => (a -> b -> a) -> Tree a -> Tree a
-renumberAtomsWith setter t = evalState (mapM renum t) 1
+renumberAtomsWith :: (a -> Int -> a) -> Int -> Tree a -> Tree a
+renumberAtomsWith setter initial t = evalState (mapM renum t) initial
   where
     renum a = do i <- get
                  modify (+1)
                  return $ a `setter` i
 
 -- | Renumbers Cartesian atoms within `CartesianTopo` starting from a given number.
-renumberAtomsC :: CartesianTopo -> CartesianTopo
+renumberAtomsC :: Int -> CartesianTopo -> CartesianTopo
 renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
 
 -- | Renumbers Torsion atoms within `TorsionTopo` starting from from a given number.
-renumberAtomsT :: TorsionTopo -> TorsionTopo
+renumberAtomsT :: Int -> TorsionTopo -> TorsionTopo
 renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
 --_test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
@@ -374,7 +374,7 @@ renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 -- * Convertion from and to `SilentModel`.
 -- | Converts a ROSETTA `SilentModel` to a Torsion topology.
 silentModel2TorsionTopo ::  SilentModel -> TorsionTopo
-silentModel2TorsionTopo = renumberAtomsT . constructBackbone . prepare
+silentModel2TorsionTopo = renumberAtomsT 1 . constructBackbone . prepare
   where
     prepare mdl = zipWith extractInput
                     (BS.unpack $ fastaSeq mdl)
