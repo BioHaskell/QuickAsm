@@ -7,7 +7,10 @@ module FragReplacement( randomV
                       , randomReplace
                       , applyFragment
                       , replaceFragment
-                      , changeAt
+
+                      , changeTopoAt
+                      , splitTopoAt
+
                       , replaceBackboneDihedrals
                       , metropolisCriterion
                       , checkMetropolisCriterionR
@@ -59,21 +62,37 @@ randomReplace fragset topo gen = topo' `seq` (topo', gen')
 
 -- | Replaces a fragment at a given position in the topology.
 replaceFragment :: Int -> F.RFrag -> Tree Torsion -> Maybe (Tree Torsion)
-replaceFragment pos frag topo = topo `changeAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
+replaceFragment pos frag topo = topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
 
 -- | Changes a topology at a first backbone position given by a predicate (if such a position is found.)
-changeAt :: Tree a -> (a -> Bool) -> (Tree a -> Tree a) -> Maybe (Tree a)
-changeAt t pred mod = changeAt' t pred mod Just Nothing
+changeTopoAt :: Tree a -> (a -> Bool) -> (Tree a -> Tree a) -> Maybe (Tree a)
+changeTopoAt t pred mod = do (context, last, t) <- t `splitTopoAt` pred
+                             return $ context $ mod t
 
--- | Helper function to change topology at first backbone position satisfying
--- predicate. Last two arguments are continuation for the successful change,
--- and continuation when nothing is found.
-changeAt' :: Tree a-> (a -> Bool) -> (Tree a -> Tree a) -> (Tree a -> t) -> t -> t
-changeAt' t@(Node a forest) pred mod cont notFoundCont | pred a = cont $ mod t 
-changeAt' t@(Node a []    ) pred mod cont notFoundCont          = notFoundCont
-changeAt' t@(Node a forest) pred mod cont notFoundCont          = changeAt' (last forest) pred mod cont' notFoundCont
- where
-   cont' e = cont $ Node a $ replaceLastElement forest e
+splitTopoAt :: Tree a -> (a -> Bool) -> Maybe (Tree a -> Tree a, Maybe a, Tree a)
+splitTopoAt topo pred = splitTopoAt' topo pred Nothing id
+
+-- | Helper function to split topology at first backbone position satisfying predicate.
+-- Last two arguments are continuation for the successful change, and continuation when nothing is found.
+-- Values passed over to the success continuation are:
+--  * effect of applying a given modification to the context,
+--  * last atom of a context (for convenience),
+--  * splitted topology tail.
+-- Result is handed over to success continuation.
+splitTopoAt' :: Tree a-> (a -> Bool)-> Maybe a-> (Tree a -> c)-> Maybe (Tree a -> c, Maybe a, Tree a)
+splitTopoAt' t@(Node a forest) pred lastAt context | pred a = Just (context, lastAt, t)
+splitTopoAt' t@(Node a []    ) pred lastAt context          = Nothing
+splitTopoAt' t@(Node a forest) pred lastAt context          = splitTopoAt' (last forest) pred (Just a) context'
+  where context' = context . Node a . replaceLastElement forest
+
+-- | Cuts a Torsion topology at a given atom, replacing this atom with
+-- C-terminal OXT.
+cutAt :: TorsionTopo -> (Torsion -> Bool) -> Maybe TorsionTopo
+topo `cutAt` pred = do (context, lastAt, t) <- topo `splitTopoAt` pred
+                       let omega   = maybe 180.0 tDihedral lastAt
+                       let resName = maybe "UNK" tResName  lastAt
+                       let resId   = maybe 1     tResId    lastAt
+                       return $! context $! tOXT resName resId omega 
 
 -- | Replace last element of the list with a second argument.  
 replaceLastElement ::  [t] -> t -> [t]

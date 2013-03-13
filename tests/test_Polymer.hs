@@ -7,6 +7,7 @@ import Control.Exception(assert)
 import Rosetta.Silent
 
 import RepeatPolymer
+import FragReplacement
 import Topo
 import Util.Fasta
 
@@ -32,9 +33,19 @@ computePolymerSequence monomerLength linkerLength seq =
     expectedLength                = computePolymerLength monomerCount monomerLength linkerLength
     reSeq :: String               = concat $ concat $ replicate (monomerCount - 1) [monomerSeq, linkerSeq] ++ [[monomerSeq]]
     assertions                    = assert (expectedLength == length seq) .
-                                    assert (reSeq          == seq)        .
-                                    assert (monomerCount   >= 2)
-                        
+                                    assert (reSeq          ==        seq) .
+                                    assert (monomerCount   >= 2         )
+
+-- TODO: use contexts
+
+-- | 
+-- Migrate to FragReplace (next to changeAt.)
+splitTopoAt :: (Torsion -> Bool)-> Tree Torsion -> (Double -> Tree Torsion) -> Maybe (Tree Torsion)
+splitTopoAt pred topo filler = topo `splitTopoAt` pred $ filler . tDihedral . rootLabel
+
+cutTopoAt pred topo = splitTopoAt tOxt 
+
+
 main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile inputSilent
           let seq = topo2sequence topo
           let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
@@ -45,6 +56,6 @@ main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile 
           putStrLn monoSeq
           putStr "Linker : "
           putStrLn linkerSeq
-          --print topo
+          
 
 

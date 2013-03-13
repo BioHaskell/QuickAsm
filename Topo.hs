@@ -10,6 +10,9 @@ module Topo( Tree          (..)
 
            , xferC
            , xferT
+
+           , tOXT
+
            , proteinBackboneT
            , constructBackbone
            , constructCartesianBackbone
@@ -214,7 +217,7 @@ constructBackbone recs = head $ constructBackbone' recs [cterminus]
     cterminus = tOXT terResName (length recs) terOmega
     (terResName, _, _, terOmega) = last recs
 
--- | Addes OXT at the end
+-- | Adds OXT at the end.
 tOXT resName resId omega = Node (atWithDihe resName resId "OXT" omega) []
 
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
