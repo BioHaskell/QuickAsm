@@ -10,6 +10,8 @@ module FragReplacement( randomV
 
                       , changeTopoAt
                       , splitTopoAt
+                      , cutTopoAt
+                      , cTerminus
 
                       , replaceBackboneDihedrals
                       , metropolisCriterion
@@ -87,12 +89,20 @@ splitTopoAt' t@(Node a forest) pred lastAt context          = splitTopoAt' (last
 
 -- | Cuts a Torsion topology at a given atom, replacing this atom with
 -- C-terminal OXT.
-cutAt :: TorsionTopo -> (Torsion -> Bool) -> Maybe TorsionTopo
-topo `cutAt` pred = do (context, lastAt, t) <- topo `splitTopoAt` pred
-                       let omega   = maybe 180.0 tDihedral lastAt
-                       let resName = maybe "UNK" tResName  lastAt
-                       let resId   = maybe 1     tResId    lastAt
-                       return $! context $! tOXT resName resId omega 
+cutTopoAt :: TorsionTopo -> (Torsion -> Bool) -> Maybe (TorsionTopo, TorsionTopo)
+topo `cutTopoAt` pred = do (context, lastAt, tail) <- topo `splitTopoAt` pred
+                           return $! ( context $ cTerminus lastAt tail
+                                     , tail )
+
+-- | Computes C-terminus, given a last backbone atom of a chain, and maybe
+-- continuation of a backbone that could be used to copy omega angle.
+lastAt `cTerminus` tail = tOXT resName resId omega
+  where
+    omega   = if tResName (rootLabel tail) `elem` ["N", "CA", "C"] -- still backbone
+                then tDihedral $ rootLabel tail
+                else 180
+    resName = maybe "UNK" tResName  lastAt
+    resId   = maybe 1     tResId    lastAt
 
 -- | Replace last element of the list with a second argument.  
 replaceLastElement ::  [t] -> t -> [t]

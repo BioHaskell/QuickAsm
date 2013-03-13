@@ -35,10 +35,27 @@ instantiate p = renumberAtomsT              1 $
                 concat                        $
                 replicate (repeats p - 1)     [monomer p, linker p]
 
--- | Takes TorsionTopo of a polymer, automatically extracts its parameters, and coordinates.
--- For convenience i-th polymer is given as a reference.
-extractPolymer :: Int -> TorsionTopo -> Polymer
-extractPolymer i = undefined
+-- | Takes TorsionTopo of a polymer, starting, ending residues of a monomer,
+-- and an ending residue of a linker afterwards, and constructs an N-repeat
+-- polymer. That means that we cannot pick last monomer, and broken torsion
+-- angles suggest we should pick first monomer either.
+extractPolymer :: Int -> Int -> Int -> Int -> TorsionTopo -> Either String Polymer
+extractPolymer i j k n topo = do (_, _, monomerAndTail)   <- tagError "Cannot find start of the monomer" $
+                                                             topo `splitTopoAt` findResId i
+                                 (monomer, linkerAndTail) <- tagError "Cannot find end of the monomer"   $
+                                                             topo `cutTopoAt`   findResId (j+1)
+                                 (linker,  _leftover    ) <- tagError "Cannot find end of the linker"    $
+                                                             topo `cutTopoAt`   findResId (k+1)
+                                 return $! makePolymer monomer linker n
+  where
+    numberedTopo = renumberResiduesT 1 topo
+    findResId i torsion = tResId torsion == i
+    -- TODO: tagError may be generic transformation from Maybe monad to Either monad! (Or `ifMissing`?)
+    tagError :: String -> Maybe a -> Either String a
+    tagError msg = maybe (Left msg) Right
+-- TODO: Try to repair broken first two torsion angles in case of a monomer, by filling with two next torsion angles after the linker?
+-- TODO: assertions for length in residues
+
 
 -- | Takes a TorsionTopo of a polymer, automatically extracts its parameters,
 -- and creates an averaged version.
@@ -57,7 +74,7 @@ extractAveragePolymer = undefined
 glueChain :: TorsionTopo -> TorsionTopo -> TorsionTopo
 glueChain topo1 topo2 = result
   where
-    Just result = topo1 `changeAt` (\t -> tAtName t == "OXT") $ const topo2
+    Just result = topo1 `changeTopoAt` (\t -> tAtName t == "OXT") $ const topo2
 
     
 
