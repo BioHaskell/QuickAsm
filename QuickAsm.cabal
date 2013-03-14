@@ -34,7 +34,8 @@ Library
                     Score.RDC, Score.DistanceRestraints,
                     Score.Sparta
                     AtomParams,
-                    FragReplacement
+                    FragReplacement,
+                    RepeatPolymer
   other-modules:    IdealGeomParams,
                     Util.Geom, Util.MyPrintf, Util.Process,
                     Data.Tree.Util
@@ -85,5 +86,11 @@ Test-suite          test_Sparta
   build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory
   Hs-Source-Dirs:   tests
   main-is:          test_Sparta.hs
+  type:             exitcode-stdio-1.0
+
+Test-suite          test_Polymer
+  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory
+  Hs-Source-Dirs:   tests
+  main-is:          test_Polymer.hs
   type:             exitcode-stdio-1.0
 

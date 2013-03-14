@@ -36,16 +36,6 @@ computePolymerSequence monomerLength linkerLength seq =
                                     assert (reSeq          ==        seq) .
                                     assert (monomerCount   >= 2         )
 
--- TODO: use contexts
-
--- | 
--- Migrate to FragReplace (next to changeAt.)
-splitTopoAt :: (Torsion -> Bool)-> Tree Torsion -> (Double -> Tree Torsion) -> Maybe (Tree Torsion)
-splitTopoAt pred topo filler = topo `splitTopoAt` pred $ filler . tDihedral . rootLabel
-
-cutTopoAt pred topo = splitTopoAt tOxt 
-
-
 main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile inputSilent
           let seq = topo2sequence topo
           let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
