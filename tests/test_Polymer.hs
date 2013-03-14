@@ -5,6 +5,7 @@ module Main where
 import System.IO(hPutStrLn, stderr)
 import System.Exit(exitFailure)
 import Control.Exception(assert)
+import Control.Monad(forM_)
 
 import Rosetta.Silent
 
@@ -33,6 +34,8 @@ computePolymerSequence monomerLength linkerLength seq =
                                     assert (reSeq          ==        seq) .
                                     assert (monomerCount   >= 2         )
 
+showPolymer = showCartesianTopo . computePositions . instantiate
+
 main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile inputSilent
           let seq = topo2sequence topo
           let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
@@ -43,22 +46,24 @@ main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile 
           putStrLn monoSeq
           putStr "Linker : "
           putStrLn linkerSeq
-          case getPolymer topo of
-            Left errMsg   -> do hPutStrLn stderr errMsg
-                                exitFailure
-            Right polymer -> do let monoSeq2   = topo2sequence $ monomer polymer
-                                let linkerSeq2 = topo2sequence $ linker  polymer
-                                putStrLn $ "Extracted monomer seq: " ++ monoSeq2
-                                putStrLn $ "Extracted linker  seq: " ++ linkerSeq2
-                                assertM $ monoSeq   == monoSeq2
-                                assertM $ linkerSeq == linkerSeq2
-                                assertM $ seq       == topo2sequence (instantiate polymer)
+          forM_ [0..3] $ \i -> 
+            case getPolymer topo i of
+              Left errMsg   -> do hPutStrLn stderr errMsg
+                                  exitFailure
+              Right polymer -> do let monoSeq2   = topo2sequence $ monomer polymer
+                                  let linkerSeq2 = topo2sequence $ linker  polymer
+                                  putStrLn $ "Extracted monomer seq: " ++ monoSeq2
+                                  putStrLn $ "Extracted linker  seq: " ++ linkerSeq2
+                                  assertM $ monoSeq   == monoSeq2
+                                  assertM $ linkerSeq == linkerSeq2
+                                  assertM $ seq       == topo2sequence (instantiate polymer)
+                                  writeFile ("poly_" ++ show i ++ ".pdb") $ showPolymer polymer
   where
-    i               = 1
-    first           = (monomerLength + linkerLength) * i + 1
-    getPolymer topo = extractPolymer first
-                                     (first + monomerLength                - 1)
-                                     (first + monomerLength + linkerLength - 1)
-                                     5
-                                     topo
+    getPolymer topo i = extractPolymer first
+                                       (first + monomerLength                - 1)
+                                       (first + monomerLength + linkerLength - 1)
+                                       5
+                                       topo
+      where
+        first             = (monomerLength + linkerLength) * i + 1
 
