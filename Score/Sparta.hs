@@ -1,11 +1,15 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
-module Score.Sparta where
+module Score.Sparta( parseSparta
+                   , parseSpartaFile
+                   , runSparta
+                   , runSpartaWithFilename
+                   , scoreSparta
+                   ) where
 
 import qualified Data.ByteString.Char8 as BS
-import System.Posix.Process(getProcessID)
-import System.Process
-import System.IO.Temp
-import System.FilePath
+import System.Process(readProcessWithExitCode)
+import System.IO.Temp(withSystemTempFile)
+import System.IO(hPutStr, hFlush, hPutStrLn, stderr)
 import System.Exit(ExitCode(..))
 
 import Rosetta.Util(readEither)
@@ -13,16 +17,57 @@ import Rosetta.Util(readEither)
 import Score.ScoringFunction
 import Topo
 
-{- Example excerpt from SPARTA+ output
-Analysis of Observed vs Predicted Shifts:
- N  RMS:   5.424 ppm Count:  51 Average Difference:  0.264 +/- 5.472 ppm
- HA RMS:   0.466 ppm Count:  58 Average Difference:  0.046 +/- 0.468 ppm
- C  RMS:   1.501 ppm Count:  54 Average Difference: -0.339 +/- 1.476 ppm
- CA RMS:   1.941 ppm Count:  54 Average Difference:  0.231 +/- 1.945 ppm
- CB RMS:   1.434 ppm Count:  46 Average Difference: -0.011 +/- 1.450 ppm
- HN RMS:   0.593 ppm Count:  51 Average Difference:  0.090 +/- 0.592 ppm
- -}
+-- TODO: ScoringFunction
+-- * Synthetic score using SPARTA+.
+-- | Takes chemical shifts file, and pair of Torsion and Cartesian topologies,
+-- and returns SPARTA score.
+scoreSparta :: FilePath -> (TorsionTopo, CartesianTopo) -> IO Double
+scoreSparta  csFilename (_, cartopo) = do spartaResult <- runSparta csFilename cartopo
+                                          case spartaResult of
+                                            Left  errMsg -> do hPutStrLn stderr $ "SPARTA error: " ++ errMsg
+                                                               return 0
+                                            Right result -> return $ weightChemShifts result
 
+-- | Computes chemical shift score like that of Preditor.
+weightChemShifts rmsList = sum $ map weightChemShift rmsList
+
+-- | Returns a chemical shift weight for each atom type.
+-- Weights from: http://www-vendruscolo.ch.cam.ac.uk/montalvao08jacs.pdf
+-- http://www-vendruscolo.ch.cam.ac.uk/montalvao08jacs.pdf
+-- H-alpha = 75, N, C-alpha, C-beta = 25
+-- Total C correlation is capped by 15
+-- Uses correlations!!!
+-- http://www.pnas.org/content/104/23/9615.full
+-- This one uses differences (not RMSds)
+weightChemShift ("H",  rms, _) = rms * 3
+weightChemShift ("CA", rms, _) = rms
+weightChemShift ("CB", rms, _) = rms
+weightChemShift ("N",  rms, _) = rms
+weightChemShift (_,    rms, _) = 0 -- not included
+
+-- * Running SPARTA
+-- | Runs SPARTA with given chemical shifts file, and Cartesian topology argument.
+runSparta csFilename cartopo = withSystemTempFile "spartaInputXXX.pdb" cont
+  where
+    cont path handle = do hPutStr handle $ showCartesianTopo cartopo
+                          hFlush handle
+                          runSpartaWithFilename csFilename path
+
+-- TODO: Package SpartaError exception
+-- TODO: use ByteString handles?
+-- | Runs SPARTA with given chemical shifts file, and PDB filename.
+runSpartaWithFilename csFilename structureFilename =
+  do (exitCode, result, errors) <- readProcessWithExitCode spartaExecutable ["-in", structureFilename, "-ref", csFilename] ""
+     case exitCode of
+       ExitFailure code -> return $ Left $ "SPARTA process returned error " ++ show code ++ ": " ++ errors
+       ExitSuccess      -> return $ parseSparta $ BS.pack result
+
+-- | SPARTA executable used by runSparta and runSpartaWithFilename.
+spartaExecutable = "sparta"
+
+-- * Parsing SPARTA standard output
+-- | Takes a ByteString and returns list of tuples with
+-- (atom name, RMS, count), where count is a number of shifts for a given atom type.
 parseSparta input = if BS.null x
                       then Left "Cannot find SPARTA header!"
                       else mapM extract records
@@ -37,31 +82,6 @@ parseSparta input = if BS.null x
                        count :: Int    <- readEither ("SPARTA count of " ++ BS.unpack atName) $ r !! 5
                        return (r !! 0, rms, count)
 
+-- | Reads SPARTA standard output from a file, and returns results in the same format as parseSparta.
 parseSpartaFile fname = parseSparta `fmap` BS.readFile fname
-
-scoreSparta  csFilename (_, cartopo) = scoreSparta' csFilename Nothing cartopo
-
-scoreSparta' csFilename tempfileSuggestion cartopo = undefined
-
-spartaExecutable = "sparta"
-
--- TODO: Package SpartaError exception
--- TODO: use ByteString handles?
-runSparta csFilename structureFilename cartopo =
-  do writeFile structureFilename $ showCartesianTopo cartopo
-     (exitCode, result, errors) <- readProcessWithExitCode spartaExecutable ["-in", structureFilename, "-ref", csFilename] ""
-     case exitCode of
-       ExitFailure code -> return $ Left $ "SPARTA process returned error " ++ show code ++ ": " ++ errors
-       ExitSuccess      -> return $ parseSparta $ BS.pack result
-
-
-{-
-withTempFile action = do pid <- show `fmap` getProcessID
-                                  withSystemTempDirectory ("Sparta_" ++ pid ++ "_") $
-                                    \tempdir -> do
-                                       let fname = tempdir </> "model.pdb"
--}                                          
-                                  
-
-                       
 
