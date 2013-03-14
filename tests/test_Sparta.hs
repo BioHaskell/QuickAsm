@@ -30,11 +30,11 @@ main = do parseResult  <- parseSpartaFile   spartaOutputFilename
           let cartopo     = computePositions torsionTopo
           timePure "Computing topology" $ cartopo `deepseq` cartopo
           spartaResult <- sysTime "Running SPARTA+" $ runSparta chemShiftInputFilename cartopo
-          case spartaResult of
-            Left errMsg  -> hPutStrLn stderr errMsg
-            Right result -> do putStr "Expected score"
-                               print $ weightChemShifts result
+          putStr "SPARTA+ result summary: "
+          print spartaResult
+          putStr "Expected score: "
+          print $ weightChemShifts spartaResult
           spartaScore <- sysTime "Scoring with SPARTA+" $ scoreSparta chemShiftInputFilename (torsionTopo, cartopo)
-          putStr "Actual score:"
+          putStr "Actual score: "
           print spartaScore
 

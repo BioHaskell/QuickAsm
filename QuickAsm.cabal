@@ -26,7 +26,7 @@ source-repository head
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
   build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector, deepseq >= 1.3.0.0,
-                    random, temporary >= 1.1.0.0, time, filepath, unix, process
+                    random, temporary >= 1.1.0.0, time, filepath, unix, process, directory
   exposed-modules:  Topo,
                     Util.Angle, Util.Fasta, Util.Timing,
                     Score.ScoreSet, Score.ScoringFunction,
@@ -36,7 +36,7 @@ Library
                     AtomParams,
                     FragReplacement
   other-modules:    IdealGeomParams,
-                    Util.Geom, Util.MyPrintf,
+                    Util.Geom, Util.MyPrintf, Util.Process,
                     Data.Tree.Util
   exposed:          True
 
@@ -82,7 +82,7 @@ Test-suite          test_Topo
   type:             exitcode-stdio-1.0
 
 Test-suite          test_Sparta
-  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix
+  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory
   Hs-Source-Dirs:   tests
   main-is:          test_Sparta.hs
   type:             exitcode-stdio-1.0

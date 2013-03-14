@@ -8,10 +8,13 @@ module Score.Sparta( parseSparta
                    ) where
 
 import qualified Data.ByteString.Char8 as BS
-import System.Process(readProcessWithExitCode)
-import System.IO.Temp(withSystemTempFile)
-import System.IO(hPutStr, hFlush, hPutStrLn, stderr)
-import System.Exit(ExitCode(..))
+import Util.Process     (readProcessWithExitCodeAndWorkingDir)
+import System.IO.Temp   (withSystemTempDirectory)
+import System.IO        (hPutStr, hFlush, hPutStrLn, stderr)
+import System.Exit      (ExitCode(..))
+import System.Directory (copyFile)
+import System.FilePath  ((</>))
+import Control.Exception
 
 import Rosetta.Util(readEither)
 
@@ -24,10 +27,7 @@ import Topo
 -- and returns SPARTA score.
 scoreSparta :: FilePath -> (TorsionTopo, CartesianTopo) -> IO Double
 scoreSparta  csFilename (_, cartopo) = do spartaResult <- runSparta csFilename cartopo
-                                          case spartaResult of
-                                            Left  errMsg -> do hPutStrLn stderr $ "SPARTA error: " ++ errMsg
-                                                               return 0
-                                            Right result -> return $ weightChemShifts result
+                                          return $ weightChemShifts spartaResult
 
 -- | Computes chemical shift score like that of Preditor.
 weightChemShifts rmsList = sum $ map weightChemShift rmsList
@@ -39,7 +39,7 @@ weightChemShifts rmsList = sum $ map weightChemShift rmsList
 -- Total C correlation is capped by 15
 -- Uses correlations!!!
 -- http://www.pnas.org/content/104/23/9615.full
--- This one uses differences (not RMSds)
+-- This one uses differences (not RMSds.)
 weightChemShift ("H",  rms, _) = rms * 3
 weightChemShift ("CA", rms, _) = rms
 weightChemShift ("CB", rms, _) = rms
@@ -47,21 +47,36 @@ weightChemShift ("N",  rms, _) = rms
 weightChemShift (_,    rms, _) = 0 -- not included
 
 -- * Running SPARTA
--- | Runs SPARTA with given chemical shifts file, and Cartesian topology argument.
-runSparta csFilename cartopo = withSystemTempFile "spartaInputXXX.pdb" cont
+-- | Runs SPARTA with given chemical shifts file, and Cartesian topology argument, in a given working directory,
+-- where pred.tab, csCalc.tab, and struct.tab will appear.
+runSparta csFilename cartopo = withSystemTempDirectory "sparta" cont
   where
-    cont path handle = do hPutStr handle $ showCartesianTopo cartopo
-                          hFlush handle
-                          runSpartaWithFilename csFilename path
+    cont dir = do let modelPath = dir </> "model.pdb"
+                  let csPath    = dir </> "input.cs"
+                  writeFile modelPath $ showCartesianTopo cartopo
+                  copyFile csFilename csPath
+                  runSpartaWithFilenameAndWorkingDir csPath modelPath (Just dir)
+
+-- | Runs SPARTA with given chemical shifts file, and Cartesian topology argument, in a current directory.
+runSpartaWithFilename :: String-> String -> IO [(BS.ByteString, Double, Int)]
+runSpartaWithFilename csFilename structureFilename = runSpartaWithFilenameAndWorkingDir csFilename structureFilename Nothing
 
 -- TODO: Package SpartaError exception
 -- TODO: use ByteString handles?
 -- | Runs SPARTA with given chemical shifts file, and PDB filename.
-runSpartaWithFilename csFilename structureFilename =
-  do (exitCode, result, errors) <- readProcessWithExitCode spartaExecutable ["-in", structureFilename, "-ref", csFilename] ""
+runSpartaWithFilenameAndWorkingDir csFilename structureFilename workingDir =
+  do (exitCode, result, errors) <- readProcessWithExitCodeAndWorkingDir spartaExecutable ["-in", structureFilename, "-ref", csFilename] "" workingDir
+     let spartaError msg = do hPutStrLn stderr $ "SPARTA ERROR: "           ++ msg    ++
+                                                 "\nERROR OUTPUT WAS:\n"    ++ errors ++
+                                                 "\nSTANDARD OUTPUT WAS:\n" ++ result
+                              return []
      case exitCode of
-       ExitFailure code -> return $ Left $ "SPARTA process returned error " ++ show code ++ ": " ++ errors
-       ExitSuccess      -> return $ parseSparta $ BS.pack result
+       ExitFailure code -> spartaError $ "exit code was " ++ show code
+       ExitSuccess      -> case parseSparta $ BS.pack result of
+                             Left msg                                    ->    spartaError msg
+                             Right result           | length result >= 5 ->    return result
+                             Right incompleteResult                      -> do spartaError "incomplete parse of result"
+                                                                               return incompleteResult
 
 -- | SPARTA executable used by runSparta and runSpartaWithFilename.
 spartaExecutable = "sparta"
