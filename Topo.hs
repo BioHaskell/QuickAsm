@@ -26,6 +26,7 @@ module Topo( Tree          (..)
            , backboneDihedrals
            , backbonePlanars
            , backbone
+           , topo2sequence
 
            -- conversions from ROSETTA input
            , silentModel2TorsionTopo
@@ -131,6 +132,14 @@ printPDBAtom outh (Cartesian { cPos     = position
                                             (v3y position)
                                             (v3z position)
 
+-- | Computes aminoacid sequence in a topology. Result is given as string
+-- of FASTA codes.
+topo2sequence ::  Tree Torsion -> [Char]
+topo2sequence = map (resname2fastacode . tResName) . filter isCAlpha . backbone
+  where
+    isCAlpha rec = tAtName rec == "CA" 
+
+
 -- * Backbone construction from residue sequence and coordinates.
 -- | Creates protein backbone from residue name, identifier and torsion angles.
 --   Also accepts an optional argument for next residue in chain.
@@ -155,6 +164,7 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
 -- | Creates single residue protein backbone from residue name, identifier,
 -- and cartesian coordinates of atoms.
 -- Also accepts optional argument for next residue in chain, and sidechain generator (from coordinate list.)
+proteinBackboneC :: String-> Int-> [Vector3]-> ([Vector3] -> [CartesianTopo])-> [CartesianTopo]-> CartesianTopo
 proteinBackboneC resName resId coords scGen tail =
     Node n [
       Node ca ( -- TODO: add sidechain
@@ -386,6 +396,7 @@ silentModel2TorsionTopo = renumberAtomsT 1 . constructBackbone . prepare
                                   , phi   silentRec
                                   , psi   silentRec
                                   , omega silentRec        )
+
 
 torsionTopo2residueDescriptors = map head . group . map tDescriptor . backbone
 {-

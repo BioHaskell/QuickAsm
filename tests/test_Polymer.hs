@@ -2,9 +2,9 @@
 -- | Tests polymer construction and instantiation.
 module Main where
 
-import Control.Exception(assert)
 import System.IO(hPutStrLn, stderr)
 import System.Exit(exitFailure)
+import Control.Exception(assert)
 
 import Rosetta.Silent
 
@@ -12,18 +12,13 @@ import RepeatPolymer
 import FragReplacement
 import Topo
 import Util.Fasta
+import Util.Assert(assertM)
 
 inputSilent = "examples/polymer/polymer.out"
 
 monomerLength = 61
 monomerCount  = 5
 linkerLength  = 32
-
-topo2sequence = map (resname2fastacode . tResName) . filter isCAlpha . backbone
-  where
-    isCAlpha rec = tAtName rec == "CA" 
-
-assertM condition = assert condition $ return ()
 
 computePolymerLength monomerCount monomerLength linkerLength = monomerLength * monomerCount + linkerLength * (monomerCount - 1)
 
@@ -57,6 +52,7 @@ main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile 
                                 putStrLn $ "Extracted linker  seq: " ++ linkerSeq2
                                 assertM $ monoSeq   == monoSeq2
                                 assertM $ linkerSeq == linkerSeq2
+                                assertM $ seq       == topo2sequence (instantiate polymer)
   where
     i               = 1
     first           = (monomerLength + linkerLength) * i + 1
