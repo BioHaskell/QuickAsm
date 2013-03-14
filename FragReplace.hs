@@ -1,23 +1,23 @@
 -- | Functions changing fragments of topology, including picking random
 -- fragment from database.
-module FragReplacement( randomV
-                      , randomV'
-                      , randomVIO
-                      , randomF
-                      , randomReplace
-                      , applyFragment
-                      , replaceFragment
+module FragReplace( randomV
+                  , randomV'
+                  , randomVIO
+                  , randomF
+                  , randomReplace
+                  , applyFragment
+                  , replaceFragment
 
-                      , changeTopoAt
-                      , splitTopoAt
-                      , cutTopoAt
-                      , cTerminus
+                  , changeTopoAt
+                  , splitTopoAt
+                  , cutTopoAt
+                  , cTerminus
 
-                      , replaceBackboneDihedrals
-                      , metropolisCriterion
-                      , checkMetropolisCriterionR
-                      , checkMetropolisCriterion
-                      ) where
+                  , replaceBackboneDihedrals
+                  , metropolisCriterion
+                  , checkMetropolisCriterionR
+                  , checkMetropolisCriterion
+                  ) where
 
 import System.Environment
 import System.Random (randomR, getStdRandom, RandomGen)

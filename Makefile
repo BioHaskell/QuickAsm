@@ -3,5 +3,5 @@
 SRC=*.hs Score/*.hs Util/*.hs
 
 tags:
-	hothasktags $(SRC) > TAGS
+	hothasktags $(SRC) > tags
 

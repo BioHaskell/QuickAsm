@@ -10,7 +10,7 @@ import Control.Monad(forM_)
 import Rosetta.Silent
 
 import RepeatPolymer
-import FragReplacement
+import FragReplace
 import Topo
 import Util.Fasta
 import Util.Assert(assertM)

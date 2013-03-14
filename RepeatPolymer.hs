@@ -7,7 +7,7 @@ module RepeatPolymer( Polymer     (..)
                     , instantiate      ) where
 
 import Topo
-import FragReplacement
+import FragReplace
 
 -- * Polymer data structure and its expansion.
 -- | Holds all information necessary for constructing a polymer
@@ -70,6 +70,7 @@ extractAveragePolymer = undefined
 -- TODO: instance Polymer     -> TorsionTopo
 -- TODO: instance Polymer     -> CartesianTopo
 -- TODO: with memoization?
+-- TODO: limited sampling?
 
 -- * Utilities for gluing chains
 -- | Replaces OXT of first chain with the second chain.

@@ -11,7 +11,7 @@ import qualified Data.ByteString.Char8 as BS
 
 import qualified Rosetta.Fragments     as F
 import qualified Rosetta.Silent        as S
-import FragReplacement
+import FragReplace
 import Topo
 import Util.Timing
 
