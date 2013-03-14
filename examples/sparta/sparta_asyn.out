@@ -1,0 +1,53 @@
+Reading Random Coil Shifts ... 
+Reading RC Adjustments ... 
+Reading BLOSUM62 Table ... 
+Loading ANN parameters ...
+Reading PDB Coordinates ... 
+Analyzing PDB Input, 433 residues ...
+Performing ANN prediction ...
+
+Analysis of Observed vs Predicted Shifts:
+
+ Notice: the Average of prediction errors for atom type N is larger than
+         expected.  The input table of observed chemical shifts require an
+         offset correction.
+
+         Std Dev of prediction error for  N shifts:  3.673 ppm
+         Average of prediction error for  N shifts: -4.141 ppm
+         Expected Limit:  0.673 ppm (3*3.673/sqrt(n))
+
+
+ Notice: the Average of prediction errors for atom type C is larger than
+         expected.  The input table of observed chemical shifts require an
+         offset correction.
+
+         Std Dev of prediction error for  C shifts:  1.202 ppm
+         Average of prediction error for  C shifts:  1.610 ppm
+         Expected Limit:  0.226 ppm (3*1.202/sqrt(n))
+
+
+ Notice: the Average of prediction errors for atom type CA is larger than
+         expected.  The input table of observed chemical shifts require an
+         offset correction.
+
+         Std Dev of prediction error for CA shifts:  1.639 ppm
+         Average of prediction error for CA shifts:  1.001 ppm
+         Expected Limit:  0.295 ppm (3*1.639/sqrt(n))
+
+
+ Notice: the Average of prediction errors for atom type CB is larger than
+         expected.  The input table of observed chemical shifts require an
+         offset correction.
+
+         Std Dev of prediction error for CB shifts:  1.788 ppm
+         Average of prediction error for CB shifts: -1.911 ppm
+         Expected Limit:  0.367 ppm (3*1.788/sqrt(n))
+
+ N  RMS:   5.531 ppm Count: 268 Average Difference: -4.141 +/- 3.673 ppm
+ HA RMS:   0.000 ppm Count:   0 Average Difference:  0.000 +/- 0.000 ppm
+ C  RMS:   2.007 ppm Count: 255 Average Difference:  1.610 +/- 1.202 ppm
+ CA RMS:   1.918 ppm Count: 278 Average Difference:  1.001 +/- 1.639 ppm
+ CB RMS:   2.615 ppm Count: 214 Average Difference: -1.911 +/- 1.788 ppm
+ HN RMS:   0.000 ppm Count:   0 Average Difference:  0.000 +/- 0.000 ppm
+
+	Running time: 6.22 seconds
