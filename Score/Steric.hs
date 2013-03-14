@@ -11,7 +11,8 @@ module Score.Steric( crossClashCheck
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Octree as O
-import Data.Tree(flatten)
+import Data.Tree       (flatten)
+import Control.DeepSeq (deepseq)
 
 import Topo
 
@@ -98,10 +99,12 @@ crossClashCheck = crossClashCheck' defaultPercent
 stericScore :: ScoringFunction
 stericScore = sf
   where sf = ScoringFunction
-               { score      = selfClashScore defaultPercent . snd
-               , scoreShow  = map (BS.pack . show) . selfClashCheck . flatten . snd
+               { score      = return . selfClashScore defaultPercent . snd
+               , scoreShow  = return . map (BS.pack . show) . selfClashCheck . flatten . snd
                , scoreLabel = "steric"
-               , scores     = \topos -> [("steric", score sf topos)]
+               , scores     = \topos -> do result <- score sf topos
+                                           result `deepseq`
+                                             return [("steric", result)]
                , components = [sf]
                }
 -- TODO: abstract creation of single scoring functions.

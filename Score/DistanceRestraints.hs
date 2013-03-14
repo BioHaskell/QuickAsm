@@ -193,10 +193,10 @@ subrange rset (from, to) = assertions
 makeDistanceScore :: RestraintSet -> ScoringFunction
 makeDistanceScore rset = sf
   where sf = ScoringFunction
-               { score      = \(_, cartopo) -> scoreDistanceRestraints rset cartopo
-               , scoreShow  = \(_, cartopo) -> map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") $ checkDistanceRestraints rset cartopo
+               { score      = \(_, cartopo) -> return $ scoreDistanceRestraints rset cartopo
+               , scoreShow  = \(_, cartopo) -> return $ map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") $ checkDistanceRestraints rset cartopo
                , scoreLabel = "cst"
-               , scores     = \(_, cartopo) -> [("cst", scoreDistanceRestraints rset cartopo)]
+               , scores     = \(_, cartopo) -> return $ [("cst", scoreDistanceRestraints rset cartopo)]
                , components = [sf]
                }
 

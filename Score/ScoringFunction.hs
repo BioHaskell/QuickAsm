@@ -14,12 +14,12 @@ import Topo(TorsionTopo, CartesianTopo, computePositions)
 -- | Actions available for any generic scoring function or potential.
 data ScoringFunction = ScoringFunction {
     -- | Computes a value of a scoring function.
-    score       :: (TorsionTopo, CartesianTopo) -> Double
+    score       :: (TorsionTopo, CartesianTopo) -> IO Double
     -- | Shows details of scoring function components.
-  , scoreShow   :: (TorsionTopo, CartesianTopo) -> [BS.ByteString]
+  , scoreShow   :: (TorsionTopo, CartesianTopo) -> IO [BS.ByteString]
     -- | Shows a label used when showing this function along with others
   , scoreLabel  :: BS.ByteString
-  , scores      :: (TorsionTopo, CartesianTopo) -> [(BS.ByteString, Double)]
+  , scores      :: (TorsionTopo, CartesianTopo) -> IO [(BS.ByteString, Double)]
   , components  :: [ScoringFunction]
   }
 
