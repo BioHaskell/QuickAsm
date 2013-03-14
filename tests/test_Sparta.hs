@@ -1,5 +1,6 @@
 module Main where
 
+import System.IO(hPutStrLn, stderr)
 import System.FilePath
 import Control.DeepSeq
 import qualified Data.ByteString.Char8 as BS
@@ -25,8 +26,15 @@ main = do parseResult  <- parseSpartaFile   spartaOutputFilename
           parseResult2 <- parseSpartaFile   spartaOutputFilename2
           print parseResult2
           [mdl]  <- time "Reading silent decoy" $ processSilentFile silentInputFilename
-          let cartopo = computePositions $ silentModel2TorsionTopo mdl
+          let torsionTopo = silentModel2TorsionTopo mdl
+          let cartopo     = computePositions torsionTopo
           timePure "Computing topology" $ cartopo `deepseq` cartopo
-          spartaResult <- sysTime "Running SPARTA+" $ runSparta chemShiftInputFilename structureOutputFilename cartopo
-          print spartaResult
+          spartaResult <- sysTime "Running SPARTA+" $ runSparta chemShiftInputFilename cartopo
+          case spartaResult of
+            Left errMsg  -> hPutStrLn stderr errMsg
+            Right result -> do putStr "Expected score"
+                               print $ weightChemShifts result
+          spartaScore <- sysTime "Scoring with SPARTA+" $ scoreSparta chemShiftInputFilename (torsionTopo, cartopo)
+          putStr "Actual score:"
+          print spartaScore
 

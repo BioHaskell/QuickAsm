@@ -4,6 +4,7 @@ module Score.Sparta( parseSparta
                    , runSparta
                    , runSpartaWithFilename
                    , scoreSparta
+                   , weightChemShifts
                    ) where
 
 import qualified Data.ByteString.Char8 as BS
