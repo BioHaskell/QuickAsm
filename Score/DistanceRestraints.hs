@@ -200,3 +200,7 @@ makeDistanceScore rset = sf
                , components = [sf]
                }
 
+-- | Read distance restraints from file and return a ScoringFunction.
+prepareDistanceScore :: CartesianTopo -> FilePath -> IO ScoringFunction
+prepareDistanceScore topo fname = makeDistanceScore `fmap` prepareRestraintsFile topo fname
+
