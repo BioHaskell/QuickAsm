@@ -5,7 +5,9 @@ Optional:
 3. Planarity restraint for NH. (Absolute value of a dot product with vector perpendicular to the plane?)
 4. Plane shift restraint. (one coordinate strictly higher between polymers.)
 5. SPARTA restraints as a guide? 
-
+6. Accurate chem shift prediction may need rotamer reconstruction using SCWRL.
+7. ShiftX requires 1.8s instead of ~9s that SPARTA+ needs for asyn polymer. But also needs a different output parser.
+BATCH mode: ./shiftx 1A input.pdb output.shiftx
 
 Profile reconstruct test.
 String -> ByteString

@@ -3,6 +3,8 @@
 module Main where
 
 import Control.Exception(assert)
+import System.IO(hPutStrLn, stderr)
+import System.Exit(exitFailure)
 
 import Rosetta.Silent
 
@@ -31,7 +33,7 @@ computePolymerSequence monomerLength linkerLength seq =
     (monomerSeq :: String, rest)  = splitAt monomerLength seq
     linkerSeq   :: String         = take linkerLength     rest
     expectedLength                = computePolymerLength monomerCount monomerLength linkerLength
-    reSeq :: String               = concat $ concat $ replicate (monomerCount - 1) [monomerSeq, linkerSeq] ++ [[monomerSeq]]
+    reSeq       :: String         = concat $ concat $ replicate (monomerCount - 1) [monomerSeq, linkerSeq] ++ [[monomerSeq]]
     assertions                    = assert (expectedLength == length seq) .
                                     assert (reSeq          ==        seq) .
                                     assert (monomerCount   >= 2         )
@@ -46,6 +48,16 @@ main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile 
           putStrLn monoSeq
           putStr "Linker : "
           putStrLn linkerSeq
-          
-
+          case getPolymer topo of
+            Left errMsg   -> do hPutStrLn stderr errMsg
+                                exitFailure
+            Right polymer -> do putStrLn $ "Extracted monomer seq: " ++ topo2sequence (monomer polymer) 
+                                putStrLn $ "Extracted linker  seq: " ++ topo2sequence (linker  polymer)
+  where
+    i               = 1
+    first           = (monomerLength + linkerLength) * i
+    getPolymer topo = extractPolymer first (first + monomerLength               )
+                                           (first + monomerLength + linkerLength)
+                                           5
+                                           topo
 

@@ -2,6 +2,7 @@
 -- | Allows for making a repeat polymer.
 module RepeatPolymer( Polymer     (..)
                     , makePolymer
+                    , extractPolymer
                     , glueChain -- move to 
                     , instantiate      ) where
 
