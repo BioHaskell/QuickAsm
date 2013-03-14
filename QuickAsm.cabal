@@ -1,5 +1,5 @@
 name:                QuickAsm
-version:             0.1
+version:             0.2
 stability:           alpha
 homepage:            https://github.com/mgajda/QuickAsm
 package-url:         http://hackage.haskell.org/package/QuickAsm
@@ -25,10 +25,13 @@ source-repository head
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
-  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector, deepseq >= 1.3.0.0, random
-  exposed-modules:  Topo, Util.Angle, Util.Fasta, 
-                    Score.RDC, Score.DistanceRestraints, Score.Steric
-                    AtomParams, Util.Timing, FragReplacement, Score.ScoreSet, Score.ScoringFunction
+  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector, deepseq >= 1.3.0.0,
+                    random, temporary >= 1.1.0.0
+  exposed-modules:  Topo,
+                    Util.Angle, Util.Fasta, Util.Timing,
+                    Score.RDC, Score.DistanceRestraints, Score.Steric, Score.ScoreSet, Score.ScoringFunction
+                    AtomParams,
+                    FragReplacement
   other-modules:    IdealGeomParams,
                     Util.Geom, Util.MyPrintf,
                     Data.Tree.Util
