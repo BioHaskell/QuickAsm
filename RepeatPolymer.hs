@@ -42,20 +42,22 @@ instantiate p = renumberAtomsT              1 $
 -- angles suggest we should pick first monomer either.
 extractPolymer :: Int -> Int -> Int -> Int -> TorsionTopo -> Either String Polymer
 extractPolymer i j k n topo = do (_, _, monomerAndTail)   <- tagError "Cannot find start of the monomer" $
-                                                             topo `splitTopoAt` findResId i
+                                                             topo           `splitTopoAt` findResId i
                                  (monomer, linkerAndTail) <- tagError "Cannot find end of the monomer"   $
-                                                             topo `cutTopoAt`   findResId (j+1)
+                                                             monomerAndTail `cutTopoAt`   findResId (j+1)
                                  (linker,  _leftover    ) <- tagError "Cannot find end of the linker"    $
-                                                             topo `cutTopoAt`   findResId (k+1)
+                                                             linkerAndTail  `cutTopoAt`   findResId (k+1)
                                  return $! makePolymer monomer linker n
   where
     numberedTopo = renumberResiduesT 1 topo
-    findResId i torsion = tResId torsion == i
     -- TODO: tagError may be generic transformation from Maybe monad to Either monad! (Or `ifMissing`?)
     tagError :: String -> Maybe a -> Either String a
     tagError msg = maybe (Left msg) Right
 -- TODO: Try to repair broken first two torsion angles in case of a monomer, by filling with two next torsion angles after the linker?
 -- TODO: assertions for length in residues
+
+-- | Checks that we are at given residue id.
+findResId i torsion = tResId torsion == i
 
 
 -- | Takes a TorsionTopo of a polymer, automatically extracts its parameters,

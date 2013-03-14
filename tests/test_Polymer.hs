@@ -51,13 +51,18 @@ main = do topo <- (head . map silentModel2TorsionTopo) `fmap` processSilentFile 
           case getPolymer topo of
             Left errMsg   -> do hPutStrLn stderr errMsg
                                 exitFailure
-            Right polymer -> do putStrLn $ "Extracted monomer seq: " ++ topo2sequence (monomer polymer) 
-                                putStrLn $ "Extracted linker  seq: " ++ topo2sequence (linker  polymer)
+            Right polymer -> do let monoSeq2   = topo2sequence $ monomer polymer
+                                let linkerSeq2 = topo2sequence $ linker  polymer
+                                putStrLn $ "Extracted monomer seq: " ++ monoSeq2
+                                putStrLn $ "Extracted linker  seq: " ++ linkerSeq2
+                                assertM $ monoSeq   == monoSeq2
+                                assertM $ linkerSeq == linkerSeq2
   where
     i               = 1
-    first           = (monomerLength + linkerLength) * i
-    getPolymer topo = extractPolymer first (first + monomerLength               )
-                                           (first + monomerLength + linkerLength)
-                                           5
-                                           topo
+    first           = (monomerLength + linkerLength) * i + 1
+    getPolymer topo = extractPolymer first
+                                     (first + monomerLength                - 1)
+                                     (first + monomerLength + linkerLength - 1)
+                                     5
+                                     topo
 
