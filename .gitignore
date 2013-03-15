@@ -7,3 +7,5 @@ poly_2.pdb
 poly_3.pdb
 pred.tab
 struct.tab
+*.hi
+*.o
