@@ -3,18 +3,19 @@ module AtomParams( atomType
                  , atomRadius
                  , maxAtomicRadius ) where
 
-atomType "C"  = "C"
-atomType "CA" = "C"
-atomType "CB" = "C"
-atomType "CG" = "C"
-atomType "N"  = "N"
-atomType "HA" = "H"
-atomType "H"  = "H"
-atomType "HB" = "H"
-atomType "O"  = "O"
-atomType "P"  = "P"
-atomType "S"  = "S"
-atomType at  = error $ "Unknown atom type for: " ++ show at
+atomType "C"   = "C"
+atomType "CA"  = "C"
+atomType "CB"  = "C"
+atomType "CG"  = "C"
+atomType "N"   = "N"
+atomType "HA"  = "H"
+atomType "H"   = "H"
+atomType "HB"  = "H"
+atomType "O"   = "O"
+atomType "OXT" = "O"
+atomType "P"   = "P"
+atomType "S"   = "S"
+atomType at    = error $ "Unknown atom type for: " ++ show at
 
 -- Taken from Wikipedia, cited Bondi 1964.
 atomicRadius "H" = 1.2 -- or 1.09?

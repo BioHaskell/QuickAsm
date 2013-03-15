@@ -95,7 +95,7 @@ prepareRestraintsFile :: CartesianTopo -> FilePath -> IO RestraintSet
 prepareRestraintsFile mdl fname = do (rset, errs) <- flip precomputeOrder mdl `fmap` R.processRestraintsFile fname
                                      forM_ errs $ \msg -> hPutStrLn stderr $ "ERROR in restraints from " ++
                                                                              fname ++ ": " ++ msg
-                                     return rset
+                                     rset `deepseq` return $! rset
 
 -- | Precompute restraint order
 -- Returns a correct `RestraintSet` and a list of error messages about incorrect `R.Restraint`s.

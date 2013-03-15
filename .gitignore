@@ -1,8 +1,9 @@
-*.hi
-*.o
-dist/
-obsolete/
-.*.swp
-FragSample
-tags
-
+checkRestraints.svg
+checkSteric.svg
+csCalc.tab
+poly_0.pdb
+poly_1.pdb
+poly_2.pdb
+poly_3.pdb
+pred.tab
+struct.tab

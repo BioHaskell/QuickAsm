@@ -41,8 +41,8 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentOutputFile
        iniScore <- time "Computing initial score" $ score scoreSet (mdl, cartopo)
        putStrLn $ "Initial score: " ++ show iniScore
        newMdl <- time "Replacing a random fragment" $ getStdRandom $ randomReplace fragset mdl
-       let newCarTopo = computePositions mdl
-       newScore <- time "Computing new score" $ score scoreSet (mdl, cartopo)
+       let newCarTopo = computePositions newMdl
+       newScore <- time "Computing new score" $ score scoreSet (newMdl, newCarTopo)
        putStrLn $ "New score: " ++ show newScore
        -- TODO: implement torsionTopo2SilentModel
        smdl <- timePure "Computing silent model" $ torsionTopo2SilentModel newMdl
