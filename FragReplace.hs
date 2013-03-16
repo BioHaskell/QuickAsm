@@ -24,6 +24,7 @@ import System.Random (randomR, getStdRandom, RandomGen)
 import System.Exit   (exitFailure, exitSuccess)
 import Control.Monad (when)
 import System.IO     (hPutStrLn, stderr)
+import Data.Maybe    (fromMaybe)
 
 import qualified Data.Vector           as V
 import qualified Data.ByteString.Char8 as BS
@@ -59,7 +60,8 @@ randomF fragset gen = ((pos, frag), gen'')
 randomReplace :: (RandomGen r) => F.RFragSet -> TorsionTopo -> r -> (TorsionTopo, r)
 randomReplace fragset topo gen = topo' `seq` (topo', gen')
   where
-    Just topo' = replaceFragment pos frag topo
+    -- Just topo' = replaceFragment pos frag topo -- TODO: fix a bug that causes this failure!
+    topo' = fromMaybe topo $ replaceFragment pos frag topo
     ((pos, frag), gen') = randomF fragset gen
 
 -- | Replaces a fragment at a given position in the topology.
