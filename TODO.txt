@@ -9,6 +9,8 @@ Optional:
 7. ShiftX requires 1.8s instead of ~9s that SPARTA+ needs for asyn polymer. But also needs a different output parser.
 BATCH mode: ./shiftx 1A input.pdb output.shiftx
 
+CHECK: consistency of fragments with topology.
+
 Profile reconstruct test.
 String -> ByteString
 

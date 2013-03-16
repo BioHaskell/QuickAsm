@@ -142,11 +142,13 @@ metropolisCriterion temp oldScore newScore = if diff < 0
     diff     = newScore - oldScore
     maxScore = 100
 
--- Checks Metropolis criterion, if given parameters, and a random number generator.
+-- | Checks Metropolis criterion, if given parameters, and a random number generator.
+checkMetropolisCriterionR :: (RandomGen t) => Double -> Double -> Double -> t -> (Bool, t)
 checkMetropolisCriterionR temp old new gen = (r < metropolisCriterion temp old new, gen')
   where
     (r, gen') = randomR (0.0, 1.0) gen
 
--- Checks Metropolis
-checkMetropolisCriterion temp old new gen = getStdRandom $ checkMetropolisCriterionR temp old new
+-- | Checks Metropolis criterion within IO monad.
+checkMetropolisCriterion :: Double -> Double -> Double -> IO Bool
+checkMetropolisCriterion temp old new = getStdRandom $ checkMetropolisCriterionR temp old new
 
