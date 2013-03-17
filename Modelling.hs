@@ -40,5 +40,5 @@ modelling act m = do m' <- act $ model m
     sf = scoring m
 
 initModelling sf m = (\vals -> Modelling m vals sf) `fmap` scores sf m
-                           
+
 

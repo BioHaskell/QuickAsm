@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
 -- | Annealing protocol abstracting from Model representation
 module Annealing( AnnealingState(..)
-                , annealingProtocol ) where
+                , annealingProtocol
+                , torsionFragSampler ) where
 
 import System.Random
 import Control.DeepSeq(NFData(..), deepseq)
@@ -88,3 +89,7 @@ annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages ste
     temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
     --doit :: (AnnealingState -> IO AnnealingState
     doit = foldl1 composeM $ map (annealingStage sampler steps) temperatures 
+
+-- | Example sampling function for TorsionModel                           
+torsionFragSampler fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
+

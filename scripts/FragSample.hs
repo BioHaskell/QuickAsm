@@ -24,8 +24,6 @@ import Score.ScoringFunction(score, ScoringFunction)
 import Modelling
 import Model
 
-modellingFragReplacement fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
-
 main = do args <- getArgs
           when (length args /= 6) $ do hPutStrLn stderr "FragSample <fragments_R3> <silentInput.out> <restraints.cst> <currentOutput.out> <best.out> <output.pdb>"
                                        hPutStrLn stderr "NOTE: only first model from <silentInput.out> is taken."
@@ -45,7 +43,7 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOut
        let scoreSet = makeScoreSet "score" [ distScore
                                            , stericScore ]
        iniScore <- time "Computing initial score" $ score scoreSet $ initTorsionModel mdl
-       annState <- time "Annealing protocol" $ annealingProtocol (modellingFragReplacement fragset) scoreSet (iniScore*0.2) 0.9 30 100 $ initTorsionModel mdl
+       annState <- time "Annealing protocol" $ annealingProtocol (torsionFragSampler fragset) scoreSet (iniScore*0.2) 0.9 30 100 $ initTorsionModel mdl
        let bestMdl    = model $ best    annState
        let currentMdl = model $ current annState
        putStrLn $ "Final score " ++ show (modelScore $ current annState)
