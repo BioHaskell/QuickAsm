@@ -28,8 +28,9 @@ instance Show AnnealingState where
 -- TODO: ignoring fragSet here...
 instance NFData AnnealingState where
 
-
 -- TODO: here verify consistency of model and fragset!
+-- | Initializes annealing by creating Modelling objects, and AnnealingState
+initAnnealing :: ScoringFunction -> TorsionModel -> IO AnnealingState
 initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
                                 return $! AnnState { best      = mdling
                                                    , current   = mdling
@@ -39,7 +40,7 @@ initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
                                                    }
 
 -- | Runs a single sampling trial at a given temperature.
---samplingStep :: (Double -> AnnealingState -> IO AnnealingState
+samplingStep :: (TorsionModelling -> IO TorsionModelling)-> Double -> AnnealingState -> IO AnnealingState
 samplingStep sampler temperature annState =
   do newMdl <- sampler $ current annState
      let newScore = modelScore newMdl
@@ -54,8 +55,9 @@ samplingStep sampler temperature annState =
                                          then newMdl
                                          else best annState }
 
---annealingStage :: F.RFragSet -> ScoringFunction -> Int -> Double -> AnnealingState -> IO AnnealingState
-annealingStage sampler scoreSet steps temperature annealingState = time "Annealing stage" $ 
+-- | A single temperature stage of annealing protocol with a given number of sampler trials. 
+annealingStage :: (TorsionModelling -> IO TorsionModelling)-> Int -> Double -> AnnealingState -> IO AnnealingState
+annealingStage sampler steps temperature annealingState = time "Annealing stage" $ 
     do newState <- steps `timesM` samplingStep sampler temperature $ annealingState
        putStrLn $ show newState
        return newState
@@ -70,10 +72,12 @@ timesM 0 f a = return a
 timesM n f a = do b <- f a
                   b `deepseq` timesM (n-1) f b
 
+-- | Complete annealing protocol from a given starting topology, with a given Modelling object.
+--annealingProtocol :: (TorsionModelling -> IO TorsionModelling)-> ScoringFunction-> Double-> Double-> Int-> Int -> T -> IO AnnealingState
 annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages steps initialTopo =
     do initialState <- initAnnealing scoreSet $ initTorsionModel initialTopo
        doit initialState
   where
     temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
     doit :: AnnealingState-> IO AnnealingState
-    doit = foldl1 composeM $ map (annealingStage sampler scoreSet steps) temperatures 
+    doit = foldl1 composeM $ map (annealingStage sampler steps) temperatures 
