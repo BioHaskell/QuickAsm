@@ -5,7 +5,7 @@ import System.Environment
 import System.Random (randomR, getStdRandom, RandomGen)
 import System.Exit   (exitFailure, exitSuccess)
 import Control.Monad (when)
-import Control.DeepSeq(deepseq)
+import Control.DeepSeq(deepseq, NFData(..))
 import System.IO     (hPutStrLn, stderr)
 
 import qualified Data.Vector           as V
@@ -20,6 +20,8 @@ import Score.DistanceRestraints(prepareDistanceScore)
 import Score.Steric(stericScore)
 import Score.ScoreSet(makeScoreSet)
 import Score.ScoringFunction(score, ScoringFunction)
+import Modelling
+import Model
 
 main = do args <- getArgs
           when (length args /= 6) $ do hPutStrLn stderr "FragSample <fragments_R3> <silentInput.out> <restraints.cst> <currentOutput.out> <best.out> <output.pdb>"
@@ -30,31 +32,55 @@ main = do args <- getArgs
           main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOutputFilename silentBestOutputFilename pdbOutputFilename
           exitSuccess
 
---samplingStep :: FragmentSet -> ScoringFunction -> AnnealingState -> AnnealingState
-samplingStep :: F.RFragSet-> ScoringFunction-> Double -> AnnealingState -> IO AnnealingState
-samplingStep fragset scoreSet temperature (bestTopo, bestScore, curTopo, curScore, successes) = 
-  do newTopo <- getStdRandom $ randomReplace fragset curTopo
-     let newCarTopo = computePositions newTopo
-     newScore <- score scoreSet (newTopo, newCarTopo)
-     crit <- checkMetropolisCriterion temperature curScore newScore
-     let newSuccesses = if crit
-                          then successes + 1
-                          else successes
-     let (newCurTopo, newCurScore)   = if crit
-                                          then (newTopo, newScore)
-                                          else (curTopo, curScore)
-     let (newBestTopo, newBestScore) = if curScore < bestScore
-                                          then (newTopo,  newScore )
-                                          else (bestTopo, bestScore)
-     return $! (newBestTopo, newBestScore, newCurTopo, newCurScore, newSuccesses)
+data AnnealingState = AnnState { best      :: TorsionModelling
+                               , current   :: TorsionModelling
+                               , successes :: !Int
+                               , stages    :: !Int
+                               , steps     :: !Int
+                               , fragSet   :: F.RFragSet
+                               }
+
+instance Show AnnealingState where
+  show annState = concat ["Had ",                       show $ successes            annState,
+                          ", best score:",              show $ modelScore $ best    annState,
+                          " current score:",            show $ modelScore $ current annState]
+
+-- TODO: ignoring fragSet here...
+instance NFData AnnealingState where
+
+
+-- TODO: here verify consistency of model and fragset!
+initAnnealing fragset scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
+                                        return $! AnnState { best      = mdling
+                                                           , current   = mdling
+                                                           , fragSet   = fragset
+                                                           , successes = 0
+                                                           , stages    = 0
+                                                           , steps     = 0
+                                                           }
+
+-- | Runs a single sampling trial at a given temperature.
+samplingStep :: Double -> AnnealingState -> IO AnnealingState
+samplingStep temperature annState = 
+  do newMdl <- modellingFragReplacement (fragSet annState) (current annState)
+     let newScore = modelScore newMdl
+     crit <- checkMetropolisCriterion temperature (modelScore $ current annState) newScore
+     return $! annState { successes = if crit
+                                         then successes annState + 1
+                                         else successes annState
+                        , current   = if crit
+                                         then newMdl
+                                         else current annState
+                        , best      = if newScore < modelScore (best annState)
+                                         then newMdl
+                                         else best annState }
+
+modellingFragReplacement fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
 
 annealingStage :: F.RFragSet -> ScoringFunction -> Int -> Double -> AnnealingState -> IO AnnealingState
 annealingStage fragSet scoreSet steps temperature annealingState = time "Annealing stage" $ 
-    do newState <- steps `timesM` samplingStep fragSet scoreSet temperature $ annealingState
-       putStrLn $ concat ["Had ",                       show $ successCount newState,
-                          " successes at temperature ", show temperature,
-                          ", best score:",              show $ bestScore annealingState,
-                          " current score:",            show $ currentScore annealingState]
+    do newState <- steps `timesM` samplingStep temperature $ annealingState
+       putStrLn $ show newState
        return newState
 
 infix 4 `timesM`
@@ -67,7 +93,7 @@ timesM 0 f a = return a
 timesM n f a = do b <- f a
                   b `deepseq` timesM (n-1) f b
 
-type AnnealingState = (TorsionTopo, Double, TorsionTopo, Double, Int)
+--type AnnealingState = (TorsionTopo, Double, TorsionTopo, Double, Int)
 
 -- TODO: annealing state should be a record
 bestScore    (_, b, _, _, _) = b
@@ -75,18 +101,12 @@ currentScore (_, _, _, c, _) = c
 successCount (_, _, _, _, f) = f
 
 annealingProtocol fragSet scoreSet initialTemperature temperatureDrop stages steps initialTopo =
-    do initialScore <- score scoreSet (initialTopo, computePositions initialTopo)
-       let initialState = (initialTopo, initialScore, initialTopo, initialScore, 0)
+    do initialState <- initAnnealing fragSet scoreSet $ initTorsionModel initialTopo
        doit initialState
   where
     temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
     doit :: AnnealingState-> IO AnnealingState
     doit = foldl1 composeM $ map (annealingStage fragSet scoreSet steps) temperatures 
-
-instantiate scoreSet topo = do score <- score scoreSet (topo, cartopo)
-                               return $! (topo, cartopo, score)
-  where
-    cartopo = computePositions topo
 
 main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOutputFilename silentBestOutputFilename pdbOutputFilename = 
     do fragset <- time "Reading fragment set" $ F.processFragmentsFile fragmentInputFilename
@@ -96,14 +116,13 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOut
        distScore <- time' "Preparing distance restraints" $ prepareDistanceScore cartopo restraintsInput
        let scoreSet = makeScoreSet "score" [ distScore
                                            , stericScore ]
-       iniScore <- time "Computing initial score" $ score scoreSet (mdl, cartopo)
-       --(newMdl, newCartopo, newScore) <- samplingStep fragset scoreSet (mdl, cartopo, iniScore)
-       ((newMdl, newScore, bestMdl, bestScore, successes) :: AnnealingState) <- time "Annealing protocol" $ annealingProtocol fragset scoreSet (iniScore*0.2) 0.9 30 100 mdl
-       let newCartopo = computePositions bestMdl
-       putStrLn $ "Final score " ++ show newScore
-       putStrLn $ "Best score "  ++ show bestScore
-       time "Writing silent file for final model" $ S.writeSilentFile silentCurrentOutputFilename [torsionTopo2SilentModel newMdl]
-       time "Writing silent file for best model"  $ S.writeSilentFile silentBestOutputFilename    [torsionTopo2SilentModel bestMdl]
-       time "Writing PDB file"    $ writeFile pdbOutputFilename $ showCartesianTopo newCartopo
-       
+       iniScore <- time "Computing initial score" $ score scoreSet $ initTorsionModel mdl
+       annState <- time "Annealing protocol" $ annealingProtocol fragset scoreSet (iniScore*0.2) 0.9 30 100 mdl
+       let bestMdl    = model $ best    annState
+       let currentMdl = model $ current annState
+       putStrLn $ "Final score " ++ show (modelScore $ current annState)
+       putStrLn $ "Best score "  ++ show (modelScore $ best    annState)
+       time "Writing silent file for final model" $ S.writeSilentFile silentCurrentOutputFilename [torsionTopo2SilentModel $ tTopo currentMdl]
+       time "Writing silent file for best model"  $ S.writeSilentFile silentBestOutputFilename    [torsionTopo2SilentModel $ tTopo bestMdl   ]
+       time "Writing PDB file"   $ writeFile pdbOutputFilename $ showCartesianTopo $ cartesianTopo bestMdl
 

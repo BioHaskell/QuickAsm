@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, OverloadedStrings #-}
+{-# LANGUAGE TupleSections, OverloadedStrings, NoMonomorphismRestriction #-}
 module Score.Steric( crossClashCheck
                    , selfClashCheck
                    , crossClashCheck'
@@ -15,6 +15,7 @@ import Data.Tree       (flatten)
 import Control.DeepSeq (deepseq)
 
 import Topo
+import Model
 
 import AtomParams
 import Score.ScoringFunction(ScoringFunction(..), simpleScoringFunction)
@@ -99,6 +100,8 @@ crossClashCheck = crossClashCheck' defaultPercent
 stericScore :: ScoringFunction
 stericScore = simpleScoringFunction "steric" fun showFun
   where
-    fun     = return . selfClashScore defaultPercent . snd
-    showFun = return . map (BS.pack . show) . selfClashCheck . flatten . snd
+    fun ::  (Monad m, Model a) => a -> m Double
+    fun     = return . selfClashScore defaultPercent . cartesianTopo
+    showFun ::  (Monad m, Model a) => a -> m [BS.ByteString]
+    showFun = return . map (BS.pack . show) . selfClashCheck . flatten . cartesianTopo
 

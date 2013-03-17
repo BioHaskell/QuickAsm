@@ -1,4 +1,8 @@
-module Model(Model(..), TorsionModel(..)) where
+-- | Generic class for handling different types of models.
+module Model( Model            (..)
+            , TorsionModel     (..)
+            , initTorsionModel
+            , modifyTorsionModelM ) where
 
 import Topo
 
@@ -14,9 +18,10 @@ instance Model TorsionModel where
   cartesianTopo = cTopo
   torsionTopo   = tTopo
 
-modifyTorsionModel topoFun tModel = TModel tTopo' cTopo'
-  where
-    tTopo'      = topoFun $ tTopo tModel
-    cTopo'      = computePositions tTopo'
+modifyTorsionModelM :: (Monad m) => (TorsionTopo -> m TorsionTopo) -> TorsionModel -> m TorsionModel
+modifyTorsionModelM topoFun tModel = do tTopo' <- topoFun $ tTopo tModel
+                                        return $ TModel tTopo' $ computePositions tTopo'
 
-
+initTorsionModel topo = TModel { tTopo = topo
+                               , cTopo = computePositions topo
+                               }

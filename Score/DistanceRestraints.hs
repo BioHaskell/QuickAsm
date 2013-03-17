@@ -16,8 +16,10 @@ import qualified Data.Vector.Class  as V3
 import qualified Data.IntMap        as IMap
 import qualified Rosetta.Restraints as R
 
+import Model
 import Topo
 import Score.ScoringFunction(ScoringFunction, simpleScoringFunction)
+import Modelling
 
 -- | Contains a restraint with a precomputed atom number
 data Restraint = Restraint { source                 :: !R.Restraint
@@ -203,8 +205,10 @@ makeDistanceScore rset = sf
 makeDistanceScore :: RestraintSet -> ScoringFunction
 makeDistanceScore rset = simpleScoringFunction "cst" fun showFun
   where
-    fun     (_, cartopo) = return $ scoreDistanceRestraints rset cartopo
-    showFun (_, cartopo) = return $ map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") $ checkDistanceRestraints rset cartopo
+    fun ::  (Monad m, Model a) => a -> m Double
+    fun     = return . scoreDistanceRestraints rset . cartesianTopo
+    showFun ::  (Monad m, Model a) => a -> m [BS.ByteString]
+    showFun = return . map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") . checkDistanceRestraints rset . cartesianTopo
 
 -- | Read distance restraints from file and return a ScoringFunction.
 prepareDistanceScore :: CartesianTopo -> FilePath -> IO ScoringFunction

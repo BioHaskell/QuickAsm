@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, OverloadedStrings #-}
+{-# LANGUAGE ExistentialQuantification, OverloadedStrings, NoMonomorphismRestriction #-}
 -- | Implementation of polymorphic lists of scoring functions.
 module Score.ScoreSet( makeScoreSet
                      , makeAllScores
@@ -14,11 +14,9 @@ import Topo(computePositions, TorsionTopo, CartesianTopo)
 import Score.ScoringFunction
 import Score.DistanceRestraints(makeDistanceScore)
 import Score.Steric            (stericScore)
+import Model
 
 import qualified Data.ByteString.Char8 as BS
-
--- | TODO: change to Model class.
-type Scored = (TorsionTopo, CartesianTopo)
 
 -- Makes a compound score out of a set of components, and assigns a name to it.
 makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
@@ -30,7 +28,7 @@ makeScoreSet name subComponents = self
            , components = self:subComponents
            , scores     = fmap (zip $ map scoreLabel subComponents) . values
            }
-    values :: Scored -> IO [Double]
+    values :: (Model m) => m -> IO [Double]
     values arg = do subValues <- mapM (`score` arg) subComponents
                     let total = sum subValues
                     total `seq` return $! total:subValues
@@ -40,7 +38,7 @@ makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
 
 reportModelScore = hReportModelScore stdout
 
-hReportModelScore handle sf mdl = do labelsValues <- scores sf (mdl, computePositions mdl)
+hReportModelScore handle sf mdl = do labelsValues <- scores sf mdl
                                      BS.hPutStrLn handle $ showScores labelsValues
                                      return $ snd $ head labelsValues
 
