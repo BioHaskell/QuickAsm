@@ -1,32 +1,38 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, Rank2Types #-}
 -- | Implementation of polymorphic lists of scoring functions.
 module Score.ScoringFunction( ScoringFunction (..)
+                            , ScoreList
                             , showScores
                             , score
                             , simpleScoringFunction
+                            , totalScore
                             ) where
 
 import qualified Data.ByteString.Char8 as BS
 import System.IO(stdout, hPutStrLn)
 
-import Topo(TorsionTopo, CartesianTopo, computePositions)
+import Model
 
 type ScoreList = [(BS.ByteString, Double)]
+
+type DetailShower = (Model m) => m -> IO [BS.ByteString]
+type ScoreLister  = (Model m) => m -> IO ScoreList
+type Scorer       = (Model m) => m -> IO Double
 
 -- TODO: Move ScoringFunction to a separate module? (Than makeScoreSet.)
 -- TODO: add function that scores a cross of two models.
 -- | Actions available for any generic scoring function or potential.
 data ScoringFunction = ScoringFunction {
     -- | Shows details of scoring function components.
-    scoreShow   :: (TorsionTopo, CartesianTopo) -> IO [BS.ByteString]
+    scoreShow   :: DetailShower
     -- | Shows a label used when showing this function along with others
   , scoreLabel  :: BS.ByteString
-  , scores      :: (TorsionTopo, CartesianTopo) -> IO ScoreList 
+  , scores      :: ScoreLister 
   , components  :: [ScoringFunction]
   }
 
 -- | Computes a value of a scoring function.
-score :: ScoringFunction -> (TorsionTopo, CartesianTopo) -> IO Double
+score :: (Model m) => ScoringFunction -> m -> IO Double
 score sf arg = totalScore `fmap` scores sf arg
 
 -- | Takes a total score from a scores list.
@@ -34,7 +40,8 @@ totalScore :: ScoreList -> Double
 totalScore = snd . head
 
 -- | Defines a simple scoring function with a given name
-simpleScoringFunction  name fun detailsFun = self
+simpleScoringFunction :: BS.ByteString -> Scorer -> DetailShower -> ScoringFunction
+simpleScoringFunction name fun detailsFun = self
   where
     self = ScoringFunction
              { scoreShow  = detailsFun
