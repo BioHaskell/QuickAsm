@@ -18,7 +18,6 @@ data AnnealingState = AnnState { best      :: TorsionModelling
                                , successes :: !Int
                                , stages    :: !Int
                                , steps     :: !Int
-                               , fragSet   :: F.RFragSet
                                }
 
 instance Show AnnealingState where
@@ -31,19 +30,18 @@ instance NFData AnnealingState where
 
 
 -- TODO: here verify consistency of model and fragset!
-initAnnealing fragset scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
-                                        return $! AnnState { best      = mdling
-                                                           , current   = mdling
-                                                           , fragSet   = fragset
-                                                           , successes = 0
-                                                           , stages    = 0
-                                                           , steps     = 0
-                                                           }
+initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
+                                return $! AnnState { best      = mdling
+                                                   , current   = mdling
+                                                   , successes = 0
+                                                   , stages    = 0
+                                                   , steps     = 0
+                                                   }
 
 -- | Runs a single sampling trial at a given temperature.
-samplingStep :: Double -> AnnealingState -> IO AnnealingState
-samplingStep temperature annState = 
-  do newMdl <- modellingFragReplacement (fragSet annState) (current annState)
+--samplingStep :: (Double -> AnnealingState -> IO AnnealingState
+samplingStep sampler temperature annState =
+  do newMdl <- sampler $ current annState
      let newScore = modelScore newMdl
      crit <- checkMetropolisCriterion temperature (modelScore $ current annState) newScore
      return $! annState { successes = if crit
@@ -56,11 +54,9 @@ samplingStep temperature annState =
                                          then newMdl
                                          else best annState }
 
-modellingFragReplacement fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
-
-annealingStage :: F.RFragSet -> ScoringFunction -> Int -> Double -> AnnealingState -> IO AnnealingState
-annealingStage fragSet scoreSet steps temperature annealingState = time "Annealing stage" $ 
-    do newState <- steps `timesM` samplingStep temperature $ annealingState
+--annealingStage :: F.RFragSet -> ScoringFunction -> Int -> Double -> AnnealingState -> IO AnnealingState
+annealingStage sampler scoreSet steps temperature annealingState = time "Annealing stage" $ 
+    do newState <- steps `timesM` samplingStep sampler temperature $ annealingState
        putStrLn $ show newState
        return newState
 
@@ -74,10 +70,10 @@ timesM 0 f a = return a
 timesM n f a = do b <- f a
                   b `deepseq` timesM (n-1) f b
 
-annealingProtocol fragSet scoreSet initialTemperature temperatureDrop stages steps initialTopo =
-    do initialState <- initAnnealing fragSet scoreSet $ initTorsionModel initialTopo
+annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages steps initialTopo =
+    do initialState <- initAnnealing scoreSet $ initTorsionModel initialTopo
        doit initialState
   where
     temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
     doit :: AnnealingState-> IO AnnealingState
-    doit = foldl1 composeM $ map (annealingStage fragSet scoreSet steps) temperatures 
+    doit = foldl1 composeM $ map (annealingStage sampler scoreSet steps) temperatures 
