@@ -17,7 +17,7 @@ import Control.DeepSeq (deepseq)
 import Topo
 
 import AtomParams
-import Score.ScoringFunction(ScoringFunction(..))
+import Score.ScoringFunction(ScoringFunction(..), simpleScoringFunction)
 
 -- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
@@ -97,15 +97,8 @@ selfClashCheck  = selfClashCheck'  defaultPercent
 crossClashCheck = crossClashCheck' defaultPercent
 
 stericScore :: ScoringFunction
-stericScore = sf
-  where sf = ScoringFunction
-               { score      = return . selfClashScore defaultPercent . snd
-               , scoreShow  = return . map (BS.pack . show) . selfClashCheck . flatten . snd
-               , scoreLabel = "steric"
-               , scores     = \topos -> do result <- score sf topos
-                                           result `deepseq`
-                                             return [("steric", result)]
-               , components = [sf]
-               }
--- TODO: abstract creation of single scoring functions.
+stericScore = simpleScoringFunction "steric" fun showFun
+  where
+    fun     = return . selfClashScore defaultPercent . snd
+    showFun = return . map (BS.pack . show) . selfClashCheck . flatten . snd
 

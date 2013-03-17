@@ -1,10 +1,11 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, GADTs, StandaloneDeriving #-}
 module Main where
 
 import System.Environment
 import System.Random (randomR, getStdRandom, RandomGen)
 import System.Exit   (exitFailure, exitSuccess)
 import Control.Monad (when)
+import Control.DeepSeq(deepseq)
 import System.IO     (hPutStrLn, stderr)
 
 import qualified Data.Vector           as V
@@ -29,15 +30,13 @@ main = do args <- getArgs
           main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOutputFilename silentBestOutputFilename pdbOutputFilename
           exitSuccess
 
-type AnnealingState = (TorsionTopo, Double, TorsionTopo, Double, Int)
-
 --samplingStep :: FragmentSet -> ScoringFunction -> AnnealingState -> AnnealingState
 samplingStep :: F.RFragSet-> ScoringFunction-> Double -> AnnealingState -> IO AnnealingState
 samplingStep fragset scoreSet temperature (bestTopo, bestScore, curTopo, curScore, successes) = 
   do newTopo <- getStdRandom $ randomReplace fragset curTopo
      let newCarTopo = computePositions newTopo
      newScore <- score scoreSet (newTopo, newCarTopo)
-     crit <- checkMetropolisCriterion temperature newScore curScore
+     crit <- checkMetropolisCriterion temperature curScore newScore
      let newSuccesses = if crit
                           then successes + 1
                           else successes
@@ -52,16 +51,24 @@ samplingStep fragset scoreSet temperature (bestTopo, bestScore, curTopo, curScor
 annealingStage :: F.RFragSet -> ScoringFunction -> Int -> Double -> AnnealingState -> IO AnnealingState
 annealingStage fragSet scoreSet steps temperature annealingState = time "Annealing stage" $ 
     do newState <- steps `timesM` samplingStep fragSet scoreSet temperature $ annealingState
-       putStrLn $ concat ["Had ",                      show $ successCount newState,
-                          "successes at temperature ", show temperature,
-                          ", best score:",             show $ bestScore annealingState,
-                          " current score:",           show $ currentScore annealingState]
+       putStrLn $ concat ["Had ",                       show $ successCount newState,
+                          " successes at temperature ", show temperature,
+                          ", best score:",              show $ bestScore annealingState,
+                          " current score:",            show $ currentScore annealingState]
        return newState
 
 infix 4 `timesM`
 composeM a b t = do r <- a t
                     b r
-timesM n = foldl1 composeM . replicate n
+-- TODO: check why it leaks stack space...
+--timesM n = foldl1 composeM . replicate n
+
+timesM 0 f a = return a
+timesM n f a = do b <- f a
+                  b `deepseq` timesM (n-1) f b
+
+type AnnealingState = (TorsionTopo, Double, TorsionTopo, Double, Int)
+
 -- TODO: annealing state should be a record
 bestScore    (_, b, _, _, _) = b
 currentScore (_, _, _, c, _) = c
@@ -91,7 +98,7 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOut
                                            , stericScore ]
        iniScore <- time "Computing initial score" $ score scoreSet (mdl, cartopo)
        --(newMdl, newCartopo, newScore) <- samplingStep fragset scoreSet (mdl, cartopo, iniScore)
-       ((newMdl, newScore, bestMdl, bestScore, successes) :: AnnealingState) <- time "Annealing protocol" $ annealingProtocol fragset scoreSet (iniScore*0.2) 0.9 100 100 mdl
+       ((newMdl, newScore, bestMdl, bestScore, successes) :: AnnealingState) <- time "Annealing protocol" $ annealingProtocol fragset scoreSet (iniScore*0.2) 0.9 30 100 mdl
        let newCartopo = computePositions bestMdl
        putStrLn $ "Final score " ++ show newScore
        putStrLn $ "Best score "  ++ show bestScore

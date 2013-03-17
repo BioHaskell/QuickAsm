@@ -17,21 +17,23 @@ import Score.Steric            (stericScore)
 
 import qualified Data.ByteString.Char8 as BS
 
+-- | TODO: change to Model class.
 type Scored = (TorsionTopo, CartesianTopo)
 
 -- Makes a compound score out of a set of components, and assigns a name to it.
 makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
-makeScoreSet name components =
-  ScoringFunction {
-    score      = fmap sum . values 
-  , scoreShow  = \arg -> concat `fmap` mapM (`scoreShow` arg) components 
-  , scoreLabel = name
-  , components = components
-  , scores     = fmap (zip $ map scoreLabel components) . values
-  }
+makeScoreSet name subComponents = self
   where
+    self = ScoringFunction {
+             scoreShow  = \arg -> concat `fmap` mapM (`scoreShow` arg) (tail $ components self)
+           , scoreLabel = name
+           , components = self:subComponents
+           , scores     = fmap (zip $ map scoreLabel subComponents) . values
+           }
     values :: Scored -> IO [Double]
-    values arg = mapM (`score` arg) components 
+    values arg = do subValues <- mapM (`score` arg) subComponents
+                    let total = sum subValues
+                    total `seq` return $! total:subValues
 
 makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
                                           , stericScore            ]
