@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
+-- | Annealing protocol abstracting from Model representation
 module Annealing( AnnealingState(..)
                 , annealingProtocol ) where
 
@@ -13,24 +15,26 @@ import Model
 import Modelling
 import FragReplace
 
-data AnnealingState = AnnState { best      :: TorsionModelling
-                               , current   :: TorsionModelling
-                               , successes :: !Int
-                               , stages    :: !Int
-                               , steps     :: !Int
-                               }
+-- | Holds current and best models, number of successes, stages, and steps.
+data AnnealingState m = AnnState { best      :: Modelling m
+                                 , current   :: Modelling m
+                                 , successes :: !Int
+                                 , stages    :: !Int
+                                 , steps     :: !Int
+                                 }
 
-instance Show AnnealingState where
-  show annState = concat ["Had ",                       show $ successes            annState,
-                          ", best score:",              show $ modelScore $ best    annState,
-                          " current score:",            show $ modelScore $ current annState]
+instance Show (AnnealingState m) where
+  show annState = concat ["Had ",            show $ successes            annState,
+                          ", best score:",   show $ modelScore $ best    annState,
+                          " current score:", show $ modelScore $ current annState]
 
 -- TODO: ignoring fragSet here...
-instance NFData AnnealingState where
+instance (NFData (Modelling m)) => NFData (AnnealingState m) where
+  rnf a = rnf (best a) `seq` rnf (current a)
 
 -- TODO: here verify consistency of model and fragset!
 -- | Initializes annealing by creating Modelling objects, and AnnealingState
-initAnnealing :: ScoringFunction -> TorsionModel -> IO AnnealingState
+initAnnealing :: (Model m) => ScoringFunction -> m -> IO (AnnealingState m)
 initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
                                 return $! AnnState { best      = mdling
                                                    , current   = mdling
@@ -40,7 +44,7 @@ initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
                                                    }
 
 -- | Runs a single sampling trial at a given temperature.
-samplingStep :: (TorsionModelling -> IO TorsionModelling)-> Double -> AnnealingState -> IO AnnealingState
+samplingStep :: (Modelling m -> IO (Modelling m))-> Double -> (AnnealingState m) -> IO (AnnealingState m)
 samplingStep sampler temperature annState =
   do newMdl <- sampler $ current annState
      let newScore = modelScore newMdl
@@ -56,28 +60,31 @@ samplingStep sampler temperature annState =
                                          else best annState }
 
 -- | A single temperature stage of annealing protocol with a given number of sampler trials. 
-annealingStage :: (TorsionModelling -> IO TorsionModelling)-> Int -> Double -> AnnealingState -> IO AnnealingState
+annealingStage :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
 annealingStage sampler steps temperature annealingState = time "Annealing stage" $ 
     do newState <- steps `timesM` samplingStep sampler temperature $ annealingState
        putStrLn $ show newState
        return newState
 
 infix 4 `timesM`
+composeM ::  Monad m => (a -> m b) -> (b -> m c) -> a -> m c
 composeM a b t = do r <- a t
                     b r
 -- TODO: check why it leaks stack space...
 --timesM n = foldl1 composeM . replicate n
 
+timesM :: (Monad m, NFData a) => Int -> (a -> m a) -> a -> m a
 timesM 0 f a = return a
 timesM n f a = do b <- f a
                   b `deepseq` timesM (n-1) f b
 
 -- | Complete annealing protocol from a given starting topology, with a given Modelling object.
---annealingProtocol :: (TorsionModelling -> IO TorsionModelling)-> ScoringFunction-> Double-> Double-> Int-> Int -> T -> IO AnnealingState
-annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages steps initialTopo =
-    do initialState <- initAnnealing scoreSet $ initTorsionModel initialTopo
+-- Parametrized by initial model (last argument), and sampling trial step (first argument).
+annealingProtocol :: (NFData m, Model m) => (Modelling m -> IO (Modelling m))-> ScoringFunction-> Double-> Double-> Int-> Int-> m -> IO (AnnealingState m)
+annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages steps initialModel =
+    do initialState <- initAnnealing scoreSet initialModel
        doit initialState
   where
     temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
-    doit :: AnnealingState-> IO AnnealingState
+    --doit :: (AnnealingState -> IO AnnealingState
     doit = foldl1 composeM $ map (annealingStage sampler steps) temperatures 

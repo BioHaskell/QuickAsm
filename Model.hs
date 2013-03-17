@@ -4,6 +4,8 @@ module Model( Model            (..)
             , initTorsionModel
             , modifyTorsionModelM ) where
 
+import Control.DeepSeq(NFData(..))
+
 import Topo
 
 class Model m where
@@ -17,6 +19,9 @@ data TorsionModel = TModel { tTopo       :: TorsionTopo
 instance Model TorsionModel where
   cartesianTopo = cTopo
   torsionTopo   = tTopo
+
+instance NFData TorsionModel where
+  rnf a = rnf tTopo `seq` rnf cTopo
 
 modifyTorsionModelM :: (Monad m) => (TorsionTopo -> m TorsionTopo) -> TorsionModel -> m TorsionModel
 modifyTorsionModelM topoFun tModel = do tTopo' <- topoFun $ tTopo tModel
