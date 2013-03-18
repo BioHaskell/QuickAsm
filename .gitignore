@@ -1,3 +1,4 @@
+tags
 checkRestraints.svg
 checkSteric.svg
 csCalc.tab
@@ -9,3 +10,6 @@ pred.tab
 struct.tab
 *.hi
 *.o
+scwrl*.pdb
+scwrl*.shiftx
+dist
