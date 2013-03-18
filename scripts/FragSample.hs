@@ -10,6 +10,7 @@ import System.IO     (hPutStrLn, stderr)
 
 import qualified Data.Vector           as V
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.List             as L(group, intercalate, sort)
 
 import Annealing
 import qualified Rosetta.Fragments     as F
@@ -33,11 +34,13 @@ main = do args <- getArgs
           main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOutputFilename silentBestOutputFilename pdbOutputFilename
           exitSuccess
 
-
 main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOutputFilename silentBestOutputFilename pdbOutputFilename = 
-    do fragset <- time "Reading fragment set" $ F.processFragmentsFile fragmentInputFilename
+    do inFragSet <- time "Reading fragment set" $ F.processFragmentsFile fragmentInputFilename
        mdls    <- time "Reading silent file " $ S.processSilentFile    silentInputFilename
        mdl <- timePure "Converting silent model to topology" $ silentModel2TorsionTopo $ head mdls
+       hPutStrLn stderr $ showFragSetRange     inFragSet
+       hPutStrLn stderr $ showTopoResidueRange mdl
+       fragset <- checkFragments mdl inFragSet
        let cartopo = computePositions mdl
        distScore <- time' "Preparing distance restraints" $ prepareDistanceScore cartopo restraintsInput
        let scoreSet = makeScoreSet "score" [ distScore

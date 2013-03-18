@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Functions changing fragments of topology, including picking random
 -- fragment from database.
 module FragReplace( randomV
@@ -17,14 +18,20 @@ module FragReplace( randomV
                   , metropolisCriterion
                   , checkMetropolisCriterionR
                   , checkMetropolisCriterion
+                  , validFragments
+                  , checkFragments
+                  , showFragSetRange
+                  , showTopoResidueRange
                   ) where
 
 import System.Environment
 import System.Random (randomR, getStdRandom, RandomGen)
 import System.Exit   (exitFailure, exitSuccess)
 import Control.Monad (when)
+import Control.Arrow ((***), (&&&))
 import System.IO     (hPutStrLn, stderr)
 import Data.Maybe    (fromMaybe)
+import qualified Data.List as L(group, sort, intercalate)
 
 import qualified Data.Vector           as V
 import qualified Data.ByteString.Char8 as BS
@@ -41,7 +48,7 @@ randomV v gen = (e, gen')
 
 -- | Take random element of the vector, and position from which it was drawn.
 randomV' :: RandomGen r => V.Vector a -> r -> ((Int, a), r)
-randomV' v gen = ((i, v V.! i), gen')
+randomV' v gen = ((i+1, v V.! i), gen')
   where
     (i, gen') = randomR (0 :: Int, V.length v-1) gen
 
@@ -58,10 +65,14 @@ randomF fragset gen = ((pos, frag), gen'')
 
 -- | Perform a random fragment replacement on a TorsionTopo.
 randomReplace :: (RandomGen r) => F.RFragSet -> TorsionTopo -> r -> (TorsionTopo, r)
-randomReplace fragset topo gen = topo' `seq` (topo', gen')
+randomReplace fragset topo gen = case replaceFragment pos frag topo of
+                                   Just topo' -> topo' `seq` (topo', gen')
+                                   Nothing    -> error $ concat [ "replaceFragment failed to find position "
+                                                                , show pos, " for fragment "
+                                                                , show frag ]
   where
     -- Just topo' = replaceFragment pos frag topo -- TODO: fix a bug that causes this failure!
-    topo' = fromMaybe topo $ replaceFragment pos frag topo
+    --topo' = fromMaybe topo $ replaceFragment pos frag topo
     ((pos, frag), gen') = randomF fragset gen
 
 -- | Replaces a fragment at a given position in the topology.
@@ -153,4 +164,48 @@ checkMetropolisCriterionR temp old new gen = (r < metropolisCriterion temp old n
 -- | Checks Metropolis criterion within IO monad.
 checkMetropolisCriterion :: Double -> Double -> Double -> IO Bool
 checkMetropolisCriterion temp old new = getStdRandom $ checkMetropolisCriterionR temp old new
+
+-- | Validates that fragments in RFragSet refer to positions present in a
+-- given Torsion topology, and returns valid subset, and a list of positions
+-- in RFragSet that are invalid.
+validFragments :: TorsionTopo -> F.RFragSet -> (F.RFragSet, [Int])
+validFragments tTopo = (F.RFragSet *** (V.toList . V.map (whichNotInRange . pos . V.head))) . V.partition (inRangeT . pos . V.head) . F.unRFragSet
+  where
+    pos = F.startPos &&& F.endPos
+    topoRange :: [Int] = map head $ L.group $ L.sort $ map tResId $ backbone tTopo
+    topoMin         = minimum topoRange
+    topoMax         = maximum topoRange
+    inRangeT (a, b) = inRange a      && inRange b
+    inRange  x      = (x >= topoMin) && (x <= topoMax)
+    whichNotInRange (a, b) = if not (inRange a)
+                               then a
+                               else b
+
+-- | Checks consistency between topology and fragment set. Returns subset
+-- of fragments at valid positions, and print invalid positions to stderr.
+checkFragments tTopo fragSet = do when (length invalidPositions > 0) $
+                                    hPutStrLn stderr $ "Dropping fragments referring to positions absent in topology: " ++
+                                                       L.intercalate ", " (map show invalidPositions)
+                                  return fragSet'
+  where
+    (fragSet', invalidPositions) = validFragments tTopo fragSet
+
+
+-- | Shows range of residue positions within fragment set.
+showFragSetRange :: F.RFragSet -> String
+showFragSetRange inFragSet = concat [ "Fragment set covers range between "
+                                    , show start, " and ", show end        ]
+  where
+    takePositions :: (F.RFrag -> Int) -> [Int]
+    takePositions proj = map head $ L.group $ L.sort $ V.toList $ V.map (proj . V.head) $ F.unRFragSet inFragSet
+    start = minimum $ takePositions F.startPos
+    end   = maximum $ takePositions F.endPos
+
+-- | Shows range of residue numbers within a topology. (For debugging.)
+showTopoResidueRange :: TorsionTopo -> String
+showTopoResidueRange topo = concat ["Topology residues in range: ", show minRes, "-", show maxRes]
+  where
+    residues = map head $ L.group $ L.sort $ map tResId $ backbone topo
+    minRes = minimum residues
+    maxRes = maximum residues
 
