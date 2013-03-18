@@ -8,10 +8,13 @@ module RepeatPolymer( Polymer      (..)
                     , PolymerModel (..)
                     , makePolymerModel
                     , samplePolymer
-                    , samplePolymerModel ) where
+                    , polymerFragSampler ) where
 
+import System.Random(RandomGen)
 import Data.Maybe(fromMaybe)
 import Control.Exception(assert)
+
+import Rosetta.Fragments(RFragSet)
 
 import Topo
 import FragReplace
@@ -115,10 +118,11 @@ samplePolymer fragSet poly gen = if pos <= monomerLen poly
    ((pos, frag), gen') = randomF fragSet gen
    assertions = assert $ pos <= monomerLen poly + linkerLen poly
 
-samplePolymerModel fragSet poly gen = PModel { polymer = poly'
-                                             , tPoly   = topo'
-                                             , cPoly   = computePositions topo'
-                                             }
+polymerFragSampler :: RandomGen t => RFragSet -> PolymerModel -> t -> PolymerModel
+polymerFragSampler fragSet polyModel gen = PModel { polymer = poly'
+                                                  , tPoly   = topo'
+                                                  , cPoly   = computePositions topo'
+                                                  }
   where
-    (poly', gen') = samplePolymer fragSet poly gen
+    (poly', gen') = samplePolymer fragSet (polymer polyModel) gen
     topo' = instantiate poly'

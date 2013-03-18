@@ -91,5 +91,6 @@ annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages ste
     doit = foldl1 composeM $ map (annealingStage sampler steps) temperatures 
 
 -- | Example sampling function for TorsionModel                           
+torsionFragSampler :: F.RFragSet -> Modelling TorsionModel -> IO (Modelling TorsionModel)
 torsionFragSampler fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
 
