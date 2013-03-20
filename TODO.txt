@@ -19,8 +19,12 @@ Add test for StericClash that shows something :-)
 Scoring 832 models took 1m24s (1m21 user time.)
 Among these parsing took 33s.
 
+Potentials used:
+CS -> TALOS -> Dihedral (instead of Ramachandran)
+BB x BB potential for beta-sheet twist
+hbond_*
+
 ROSETTA potentials useful for beta-sheet assembly:
-p_aa_pp                                    Probability of amino acid at phipsi
 
 hbond_lr_bb                                backbone-backbone hbonds distant in primary sequence
 hbond_sr_bb                                backbone-backbone hbonds close in primary sequence
