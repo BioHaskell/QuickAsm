@@ -18,3 +18,19 @@ Add test for StericClash that shows something :-)
 
 Scoring 832 models took 1m24s (1m21 user time.)
 Among these parsing took 33s.
+
+ROSETTA potentials useful for beta-sheet assembly:
+p_aa_pp                                    Probability of amino acid at phipsi
+
+hbond_lr_bb                                backbone-backbone hbonds distant in primary sequence
+hbond_sr_bb                                backbone-backbone hbonds close in primary sequence
+hbond_bb_sc                                sidechain-backbone hydrogen bond energy
+hbond_sc                                   sidechain-sidechain hydrogen bond energy
+
+For full atom:
+fa_pair                                    statistics based pair term, favors salt bridges
+
+fa_dun                                     internal energy of sidechain rotamers as derived from Dunbrack's statistics
+
+fa_plane                                   pi-pi interaction between aromatic groups, by default = 0
+
