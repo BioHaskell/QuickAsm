@@ -18,7 +18,7 @@ import Topo
 model2topo :: SilentModel -> CartesianTopo
 model2topo = computePositions . silentModel2TorsionTopo
 
-printUsage = do hPutStrLn stderr "Usage: reconstructBest <input.out> <output.pdb>"
+printUsage = do hPutStrLn stderr "Usage: reconstructNBest <count> <input.out> <output.pdb>"
                 exitFailure
 
 --   TODO: optional trailing arguments - extract only given decoys
