@@ -25,7 +25,7 @@ import Modelling
 data Restraint = Restraint { source                 :: !R.Restraint
                            , leftAt,  rightAt
                            , leftRes, rightRes, num :: !Int
-                           , distance               :: !Double
+                           , rFunc                  :: !R.RestraintFunction
                            }
   deriving (Show)
 
@@ -119,7 +119,7 @@ precomputeOrder restrs cartopo = ( RSet { byLeftAtom  = sortByKey leftAt  restra
                                                , rightAt  = right
                                                , leftRes  = R.resId $ R.at1 rRestr
                                                , rightRes = R.resId $ R.at2 rRestr
-                                               , distance = R.goal rRestr
+                                               , rFunc    = R.func rRestr
                                                , num      = 0 -- to assign later with renumbering
                                                }
       where
@@ -155,10 +155,17 @@ checkDistanceRestraints' rset carTopo = scores
     finder findCriterion rsetProj  = empty V.// findPositions findCriterion (rsetProj rset) carTopo
     lefts  = finder leftAt  byLeftAtom
     rights = finder rightAt byRightAtom
-    dists  = V.fromList $ map distance $ byNum rset 
-    score  pos1 pos2 dist = max (V3.vmag (pos2 - pos1) - dist) 0.0
+    funcs  = V.fromList $ map rFunc $ byNum rset 
+    score  pos1 pos2 = rScore $ V3.vmag $ pos2 - pos1
+    rScore dist (R.RGaussian avg dev est) = (dif*dif)/(-2*dev*dev) -- ignored log of exp part... -> different constant
+      where
+        dif = dist - avg
+    -- NOTE: in ROSETTA there is a separate equation for violation larger than stdev above hibound
+    rScore dist (R.RBounded lo hi dev) = dif*dif/dev
+      where
+        dif = maximum [lo - dist, dist - hi, 0]
     -- TODO: do with need max penalty?
-    scores = V.zipWith3 score lefts rights dists
+    scores = V.zipWith3 score lefts rights funcs
 
 -- | Show value of each restraint.
 checkDistanceRestraints :: RestraintSet -> CartesianTopo -> [(Restraint, Double)]
