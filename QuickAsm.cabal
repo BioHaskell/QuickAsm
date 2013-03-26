@@ -90,7 +90,7 @@ Test-suite          test_Sparta
   type:             exitcode-stdio-1.0
 
 Test-suite          test_Polymer
-  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory
+  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory, random
   Hs-Source-Dirs:   tests
   main-is:          test_Polymer.hs
   type:             exitcode-stdio-1.0

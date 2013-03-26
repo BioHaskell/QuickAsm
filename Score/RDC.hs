@@ -4,7 +4,7 @@ module Score.RDC where
 import Score.ScoringFunction
 
 -- TODO: implement score by RDC restraints
-data RDCRestraintSet
+data RDCRestraintSet = NotYetDefined
 
 -- * Preparing RDCs to be evaluated for a given model.
 -- | Prepares RDC restraints for scoring:

@@ -53,5 +53,5 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOut
        putStrLn $ "Best score "  ++ show (modelScore $ best    annState)
        time "Writing silent file for final model" $ S.writeSilentFile silentCurrentOutputFilename [torsionTopo2SilentModel $ tTopo currentMdl]
        time "Writing silent file for best model"  $ S.writeSilentFile silentBestOutputFilename    [torsionTopo2SilentModel $ tTopo bestMdl   ]
-       time "Writing PDB file"   $ writeFile pdbOutputFilename $ showCartesianTopo $ cartesianTopo bestMdl
+       time "Writing PDB file"                    $ writeFile pdbOutputFilename $ showCartesianTopo $ cartesianTopo bestMdl
 

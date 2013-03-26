@@ -208,4 +208,3 @@ showTopoResidueRange topo = concat ["Topology residues in range: ", show minRes,
     residues = map head $ L.group $ L.sort $ map tResId $ backbone topo
     minRes = minimum residues
     maxRes = maximum residues
-

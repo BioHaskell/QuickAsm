@@ -8,11 +8,12 @@ module RepeatPolymer( Polymer      (..)
                     , PolymerModel (..)
                     , makePolymerModel
                     , samplePolymer
-                    , polymerFragSampler ) where
+                    , samplePolymerModel ) where
 
 import System.Random(RandomGen)
 import Data.Maybe(fromMaybe)
 import Control.Exception(assert)
+import Control.DeepSeq(NFData(..))
 
 import Rosetta.Fragments(RFragSet)
 
@@ -27,8 +28,13 @@ data Polymer = Polymer { monomer, linker       :: TorsionTopo
                        , repeats               :: !Int
                        , monomerLen, linkerLen :: !Int
                        }
+  deriving(Show)
 
+instance NFData Polymer where
+  rnf poly = rnf (monomer poly) `seq` rnf (linker poly)
 
+-- | Makes a Polymer out of a monomer and linker topologies, and a number
+-- of monomer repeats.
 makePolymer monomerTopo linkerTopo repeats = Polymer {
                                                monomer    = monomerTopo
                                              , linker     = linkerTopo
@@ -39,6 +45,8 @@ makePolymer monomerTopo linkerTopo repeats = Polymer {
   where
     lengthInResidues = tResId . last . backbone -- assuming they're numbered from 1.
 
+-- * PolymerModel as used during modeling.
+-- | Polymer model data structure and its cached expansions.
 data PolymerModel = PModel { polymer :: Polymer
                            , tPoly   :: TorsionTopo
                            , cPoly   :: CartesianTopo
@@ -48,6 +56,11 @@ instance Model PolymerModel where
   cartesianTopo = cPoly
   torsionTopo   = tPoly
 
+instance NFData PolymerModel where
+  rnf m = rnf (polymer m) `seq` rnf (tPoly m) `seq` rnf (cPoly m)
+
+-- | Converts Polymer to a PolymerModel, by lazy caching of its expansions
+-- as both TorsionTopo and CartesianTopo.
 makePolymerModel poly = PModel { polymer = poly
                                , tPoly   = topo
                                , cPoly   = computePositions topo
@@ -107,6 +120,7 @@ glueChain topo1 topo2 = result
   where
     Just result = topo1 `changeTopoAt` (\t -> tAtName t == "OXT") $ const topo2
 
+-- | Sampling of a polymer with random fragment.
 samplePolymer fragSet poly gen = if pos <= monomerLen poly
                                    then (polyXchgMono,   gen')
                                    else (polyXchgLinker, gen')
@@ -118,11 +132,13 @@ samplePolymer fragSet poly gen = if pos <= monomerLen poly
    ((pos, frag), gen') = randomF fragSet gen
    assertions = assert $ pos <= monomerLen poly + linkerLen poly
 
-polymerFragSampler :: RandomGen t => RFragSet -> PolymerModel -> t -> PolymerModel
-polymerFragSampler fragSet polyModel gen = PModel { polymer = poly'
-                                                  , tPoly   = topo'
-                                                  , cPoly   = computePositions topo'
-                                                  }
+-- | Sampling method to be applied to whole PolymerModel.
+samplePolymerModel :: RandomGen t => RFragSet -> PolymerModel -> t -> (PolymerModel, t)
+samplePolymerModel fragSet polyModel gen = ( PModel { polymer = poly'
+                                                    , tPoly   = topo'
+                                                    , cPoly   = computePositions topo'
+                                                    }, gen' )
   where
     (poly', gen') = samplePolymer fragSet (polymer polyModel) gen
     topo' = instantiate poly'
+
