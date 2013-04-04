@@ -31,12 +31,16 @@ import System.Win32.Console (generateConsoleCtrlEvent, cTRL_BREAK_EVENT)
 import System.Posix.Signals
 #endif
 
+-- | Forks a GHC subprocess and waits for its completion. Useful for
+-- exception containment.
 forkWait :: IO a -> IO (IO a)
 forkWait a = do
   res <- newEmptyMVar
   _ <- mask $ \restore -> forkIO $ try (restore a) >>= putMVar res
   return (takeMVar res >>= either (\ex -> throwIO (ex :: SomeException)) return)
 
+-- | Creates a subprocess, provides an input string, and returns standard
+-- output, and standard error as strings.
 readProcessWithExitCodeAndWorkingDir cmd args input workingDir =
     mask $ \restore -> do
       (Just inh, Just outh, Just errh, pid) <- createProcess (proc cmd args)

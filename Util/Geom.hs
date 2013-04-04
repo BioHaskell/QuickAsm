@@ -1,3 +1,4 @@
+-- | Utility basic geometric operations on Data.Vector.V3.Vector3.
 module Util.Geom(vperpend, vproj) where
 
 -- TODO: this should go vector library?

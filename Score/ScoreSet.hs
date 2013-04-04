@@ -18,7 +18,7 @@ import Model
 
 import qualified Data.ByteString.Char8 as BS
 
--- Makes a compound score out of a set of components, and assigns a name to it.
+-- | Makes a compound score out of a set of components, and assigns a name to it.
 makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
 makeScoreSet name subComponents = self
   where
@@ -28,16 +28,21 @@ makeScoreSet name subComponents = self
            , components = self:subComponents
            , scores     = fmap (zip $ map scoreLabel subComponents) . values
            }
+    -- | Valueation of a Model in result ScoreSet.
     values :: (Model m) => m -> IO [Double]
     values arg = do subValues <- mapM (`score` arg) subComponents
                     let total = sum subValues
                     total `seq` return $! total:subValues
 
+-- | Makes a default set of scoring functions, given a distance restraint set.
 makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
                                           , stericScore            ]
 
+-- | Reports details of a scoring function to the standard output.
 reportModelScore = hReportModelScore stdout
 
+-- | Writes a detailed report of a scoring function evaluation for a given
+-- Model to a given file Handle.
 hReportModelScore handle sf mdl = do labelsValues <- scores sf mdl
                                      BS.hPutStrLn handle $ showScores labelsValues
                                      return $ snd $ head labelsValues

@@ -58,8 +58,9 @@ Executable          reconstructBest
   main-is:          reconstructBest.hs
 
 Executable          reconstructNBest
-  build-depends:    QuickAsm, base, hRosetta, bytestring, directory, filepath
+  build-depends:    QuickAsm, base, hRosetta, bytestring, directory, filepath, deepseq
   Hs-Source-Dirs:   scripts
+  ghc-options:      -rtsopts
   main-is:          reconstructNBest.hs
 
 Executable          reconstruct

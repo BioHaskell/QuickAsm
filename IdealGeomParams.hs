@@ -1,3 +1,5 @@
+-- | Ideal bond geometry: bond planar angles, bond lengths.
+-- Values of angles are *essential* for ROSETTA compatibility.
 module IdealGeomParams(idealGeom) where
 
 {-# INLINE idealGeom #-}
