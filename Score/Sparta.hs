@@ -16,7 +16,7 @@ import System.Directory (copyFile)
 import System.FilePath  ((</>))
 import Control.Exception
 
-import Rosetta.Util(readEither)
+import Rosetta.Util(parse, bshow)
 
 import Score.ScoringFunction
 import Topo
@@ -73,7 +73,7 @@ runSpartaWithFilenameAndWorkingDir csFilename structureFilename workingDir =
      case exitCode of
        ExitFailure code -> spartaError $ "exit code was " ++ show code
        ExitSuccess      -> case parseSparta $ BS.pack result of
-                             Left msg                                    ->    spartaError msg
+                             Left msg                                    ->    spartaError $ BS.unpack msg
                              Right result           | length result >= 5 ->    return result
                              Right incompleteResult                      -> do spartaError "incomplete parse of result"
                                                                                return incompleteResult
@@ -94,8 +94,8 @@ parseSparta input = if BS.null x
     header        = "Analysis of Observed vs Predicted Shifts:"
     isRMSRecord r = (r !! 1 == "RMS:") && (r !! 4 == "Count:")
     extract r     = do let atName = r !! 0
-                       rms   :: Double <- readEither ("SPARTA RMS of "   ++ BS.unpack atName) $ r !! 2
-                       count :: Int    <- readEither ("SPARTA count of " ++ BS.unpack atName) $ r !! 5
+                       rms   :: Double <- parse ("SPARTA RMS of "   `BS.append` atName) $ r !! 2
+                       count :: Int    <- parse ("SPARTA count of " `BS.append` atName) $ r !! 5
                        return (r !! 0, rms, count)
 
 -- | Reads SPARTA standard output from a file, and returns results in the same format as parseSparta.
