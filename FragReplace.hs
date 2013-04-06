@@ -31,7 +31,7 @@ import Control.Monad (when)
 import Control.Arrow ((***), (&&&))
 import System.IO     (hPutStrLn, stderr)
 import Data.Maybe    (fromMaybe)
-import qualified Data.List as L(group, sort, intercalate)
+import qualified Data.List as L(group, sort, intercalate, nub) -- DEBUG: nub
 
 import qualified Data.Vector           as V
 import qualified Data.ByteString.Char8 as BS
@@ -79,7 +79,12 @@ randomReplace fragset topo gen = case replaceFragment pos frag topo of
 
 -- | Replaces a fragment at a given position in the topology.
 replaceFragment :: Int -> F.RFrag -> Tree Torsion -> Maybe (Tree Torsion)
-replaceFragment pos frag topo = traceShow (pos, frag) $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
+replaceFragment pos frag topo = debugging $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
+  where
+    -- DEBUG:
+    debugging = id
+    --debugging = traceShow ("replaceFragment", pos, frag, availablePositions topo) 
+    availablePositions = map (tResId &&& tAtName) . backbone
 
 -- | Changes a topology at a first backbone position given by a predicate (if such a position is found.)
 changeTopoAt :: Tree a -> (a -> Bool) -> (Tree a -> Tree a) -> Maybe (Tree a)

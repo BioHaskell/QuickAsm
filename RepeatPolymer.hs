@@ -148,14 +148,13 @@ samplePolymer fragSet poly gen = if pos <= monomerLen poly
    -- TODO: change fromMaybe to fromJust, after cutting fragment set at right place
    xchg topo = fromJust $ replaceFragment pos frag topo
    --xchg topo = fromMaybe topo $ replaceFragment pos frag topo
-   ((pos, frag), gen') = randomF fragSet gen
+   ((_pos, frag), gen') = randomF fragSet gen
+   pos = startPos frag 
    assertions = assert $ pos <= monomerLen poly + linkerLen poly
 
 -- | Sampling method to be applied to whole PolymerModel.
 samplePolymerModel :: RandomGen t => RFragSet -> PolymerModel -> t -> (PolymerModel, t)
-samplePolymerModel fragSet polyModel gen = traceShow ( "samplePolymerModel"
-                                                     , monomerLen $ polymer polyModel
-                                                     , linkerLen  $ polymer polyModel) $ 
+samplePolymerModel fragSet polyModel gen = debugging $
                                             (PModel { polymer = poly'
                                                     , tPoly   = topo'
                                                     , cPoly   = computePositions topo'
@@ -163,4 +162,8 @@ samplePolymerModel fragSet polyModel gen = traceShow ( "samplePolymerModel"
   where
     (poly', gen') = samplePolymer fragSet (polymer polyModel) gen
     topo' = instantiate poly'
+    debugging  = id
+    debugging' = traceShow ( "samplePolymerModel"
+                          , monomerLen $ polymer polyModel
+                          , linkerLen  $ polymer polyModel)
 

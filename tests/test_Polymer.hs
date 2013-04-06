@@ -98,7 +98,7 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
                                   let polySampler' m = do r <- polySampler m
                                                           debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
                                                           return r
-                                  annealingProtocol polySampler' scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
+                                  annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
                                   assertM $ seq       == topo2sequence (instantiate polymer)
                                   writeFile ("poly_" ++ show i ++ ".pdb") $ showPolymer polymer
   where
