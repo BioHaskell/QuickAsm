@@ -7,15 +7,20 @@ module RepeatPolymer( Polymer      (..)
                     , instantiate
                     , PolymerModel (..)
                     , makePolymerModel
+                    , delimitFragSet
                     , samplePolymer
                     , samplePolymerModel ) where
 
 import System.Random(RandomGen)
-import Data.Maybe(fromMaybe)
+import qualified Data.Vector as V
+import Data.Maybe(fromMaybe, fromJust) -- DEBUG: fromMaybe
+import Data.Ix(inRange)
 import Control.Exception(assert)
 import Control.DeepSeq(NFData(..))
 
-import Rosetta.Fragments(RFragSet)
+import Debug.Trace(traceShow) -- DEBUG
+
+import Rosetta.Fragments(RFragSet(..), RFrag(..))
 
 import Topo
 import FragReplace
@@ -39,11 +44,12 @@ makePolymer monomerTopo linkerTopo repeats = Polymer {
                                                monomer    = monomerTopo
                                              , linker     = linkerTopo
                                              , repeats    = repeats
-                                             , monomerLen = lengthInResidues monomerTopo
-                                             , linkerLen  = lengthInResidues linkerTopo
+                                             , monomerLen = monoLen
+                                             , linkerLen  = lastResidueId linkerTopo - monoLen
                                              }
   where
-    lengthInResidues = tResId . last . backbone -- assuming they're numbered from 1.
+    monoLen = lastResidueId monomerTopo
+    lastResidueId = tResId . last . backbone -- assuming they're numbered from 1.
 
 -- * PolymerModel as used during modeling.
 -- | Polymer model data structure and its cached expansions.
@@ -120,6 +126,18 @@ glueChain topo1 topo2 = result
   where
     Just result = topo1 `changeTopoAt` (\t -> tAtName t == "OXT") $ const topo2
 
+-- | Prepare fragment set by removing those that span the boundary between
+-- monomer and linker.
+delimitFragSet :: Polymer -> RFragSet -> RFragSet
+delimitFragSet poly = RFragSet . V.filter criterion . unRFragSet
+  where
+    notOnBoundary :: RFrag -> Bool
+    notOnBoundary f = (endPos   f <= monomerLen poly) ||
+                      (startPos f >  monomerLen poly) &&
+                      (endPos   f <= monomerLen poly + linkerLen poly)
+    criterion :: V.Vector RFrag -> Bool
+    criterion = notOnBoundary . V.head
+
 -- | Sampling of a polymer with random fragment.
 samplePolymer fragSet poly gen = if pos <= monomerLen poly
                                    then (polyXchgMono,   gen')
@@ -128,13 +146,17 @@ samplePolymer fragSet poly gen = if pos <= monomerLen poly
    polyXchgMono   = poly { monomer = xchg $ monomer poly }
    polyXchgLinker = poly { linker  = xchg $ linker  poly }
    -- TODO: change fromMaybe to fromJust, after cutting fragment set at right place
-   xchg topo = fromMaybe topo $ replaceFragment pos frag topo
+   xchg topo = fromJust $ replaceFragment pos frag topo
+   --xchg topo = fromMaybe topo $ replaceFragment pos frag topo
    ((pos, frag), gen') = randomF fragSet gen
    assertions = assert $ pos <= monomerLen poly + linkerLen poly
 
 -- | Sampling method to be applied to whole PolymerModel.
 samplePolymerModel :: RandomGen t => RFragSet -> PolymerModel -> t -> (PolymerModel, t)
-samplePolymerModel fragSet polyModel gen = ( PModel { polymer = poly'
+samplePolymerModel fragSet polyModel gen = traceShow ( "samplePolymerModel"
+                                                     , monomerLen $ polymer polyModel
+                                                     , linkerLen  $ polymer polyModel) $ 
+                                            (PModel { polymer = poly'
                                                     , tPoly   = topo'
                                                     , cPoly   = computePositions topo'
                                                     }, gen' )

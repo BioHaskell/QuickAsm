@@ -40,6 +40,8 @@ import qualified Rosetta.Fragments     as F
 import qualified Rosetta.Silent        as S
 import Topo
 import Util.Timing
+import Util.Assert(errorWithStack) -- DEBUG
+import Debug.Trace(traceShow)      -- DEBUG
 
 -- | Draw a random element of a vector.
 randomV v gen = (e, gen')
@@ -77,7 +79,7 @@ randomReplace fragset topo gen = case replaceFragment pos frag topo of
 
 -- | Replaces a fragment at a given position in the topology.
 replaceFragment :: Int -> F.RFrag -> Tree Torsion -> Maybe (Tree Torsion)
-replaceFragment pos frag topo = topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
+replaceFragment pos frag topo = traceShow (pos, frag) $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
 
 -- | Changes a topology at a first backbone position given by a predicate (if such a position is found.)
 changeTopoAt :: Tree a -> (a -> Bool) -> (Tree a -> Tree a) -> Maybe (Tree a)
@@ -107,6 +109,10 @@ topo `cutTopoAt` pred = do (context, lastAt, tail) <- topo `splitTopoAt` pred
                            return $! ( context $ cTerminus lastAt tail
                                      , tail )
 
+-- | Checks that a topology has OXT at the end.
+hasOXT :: TorsionTopo -> Bool
+hasOXT = (\t -> tAtName t == "OXT") . last . backbone
+
 -- | Computes C-terminus, given a last backbone atom of a chain, and maybe
 -- continuation of a backbone that could be used to copy omega angle.
 lastAt `cTerminus` tail = tOXT resName resId omega
@@ -133,7 +139,7 @@ applyFragment vres t = assertions $ replaceBackboneDihedrals dihes t
 
 -- | Maps a function over the last element of the list, and returns modified list.
 mapLastElement ::  (t -> t) -> [t] -> [t]
-mapLastElement f []     = error "mapLastElement called on an empty list!"
+mapLastElement f []     = errorWithStack "mapLastElement called on an empty list!"
 mapLastElement f [c]    = [f c]
 mapLastElement f (c:cs) = c:mapLastElement f cs
 
