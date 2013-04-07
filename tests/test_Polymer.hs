@@ -55,6 +55,7 @@ debugFragSet fragSet = do putStrLn $ "Fragment set length: "             ++ (sho
   where
     showEach projection = intercalate " " . map show . V.toList . V.map (projection . V.head) . F.unRFragSet
 
+debugPolymer ::  Polymer -> String -> String -> IO ()
 debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (show . hasOXT . monomer) polymer
                                             putStrLn $ "Polymer has OXT:" ++ (show . hasOXT . linker ) polymer
                                             putStrLn $ "Monomer residues:" ++ (intercalate " " . nub . map tShowRes . backbone . monomer ) polymer
@@ -64,10 +65,12 @@ debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (sh
                                             putStrLn $ "Actual   monomer length: " ++ (show . length . topo2sequence . monomer) polymer
                                             putStrLn $ "Recorded linker  length: " ++ (show . linkerLen)        polymer
                                             putStrLn $ "Actual   linker  length: " ++ (show . length . topo2sequence . linker ) polymer
-                                            assertM  $ monoSeq   == monoSeq2
-                                            assertM  $ linkerSeq == linkerSeq2
-                                            assertM  $ length monoSeq   == monomerLen polymer
-                                            assertM  $ length linkerSeq == linkerLen polymer
+                                            assertM  $ monoSeq            == monoSeq2
+                                            assertM  $ linkerSeq          == linkerSeq2
+                                            assertM  $ length monoSeq     == monomerLen polymer
+                                            assertM  $ length linkerSeq   == linkerLen polymer
+                                            assertM  $ lastResidueId (monomer polymer) == monomerLen polymer                                  
+                                            assertM  $ lastResidueId (linker polymer)  == (uncurry (+) . (linkerLen &&& monomerLen)) polymer  
   where
     monoSeq2   = topo2sequence $ monomer polymer
     linkerSeq2 = topo2sequence $ linker  polymer
