@@ -8,7 +8,8 @@ import           System.Random(getStdRandom)
 import           Control.Exception(assert)
 import           Control.Monad(forM_)
 import qualified Data.Vector as V
-import           Data.List(intercalate)
+import           Data.List(intercalate, nub)
+import           Control.Arrow((&&&))
 
 import           Rosetta.Silent
 import qualified Rosetta.Fragments as F
@@ -58,8 +59,11 @@ debugFragSet fragSet = do putStrLn $ "Fragment set length: "             ++ (sho
 hasOXT :: TorsionTopo -> Bool
 hasOXT = (\t -> tAtName t == "OXT") . last . backbone
 
+tRes tors = tResName tors ++ show (tResId tors)
+
 debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (show . hasOXT . monomer) polymer
                                             putStrLn $ "Polymer has OXT:" ++ (show . hasOXT . linker ) polymer
+                                            putStrLn $ "Monomer residues:" ++ (intercalate " " . nub . map tRes . backbone . monomer ) polymer
                                             putStrLn $ "Extracted monomer seq: "   ++ monoSeq2
                                             putStrLn $ "Extracted linker  seq: "   ++ linkerSeq2
                                             putStrLn $ "Recorded monomer length: " ++ (show . monomerLen)       polymer
@@ -98,7 +102,8 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
                                   let polySampler' m = do r <- polySampler m
                                                           debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
                                                           return r
-                                  annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
+                                  --annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
+                                  annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer
                                   assertM $ seq       == topo2sequence (instantiate polymer)
                                   writeFile ("poly_" ++ show i ++ ".pdb") $ showPolymer polymer
   where

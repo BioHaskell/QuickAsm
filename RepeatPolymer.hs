@@ -41,14 +41,16 @@ instance NFData Polymer where
 -- | Makes a Polymer out of a monomer and linker topologies, and a number
 -- of monomer repeats.
 makePolymer monomerTopo linkerTopo repeats = Polymer {
-                                               monomer    = monomerTopo
-                                             , linker     = linkerTopo
+                                               monomer    = monomerTopo'
+                                             , linker     = linkerTopo'
                                              , repeats    = repeats
                                              , monomerLen = monoLen
-                                             , linkerLen  = lastResidueId linkerTopo - monoLen
+                                             , linkerLen  = lastResidueId linkerTopo' - monoLen
                                              }
   where
-    monoLen = lastResidueId monomerTopo
+    monomerTopo' = renumberResiduesT 1             monomerTopo
+    linkerTopo'  = renumberResiduesT (monoLen + 1) linkerTopo
+    monoLen = lastResidueId monomerTopo'
     lastResidueId = tResId . last . backbone -- assuming they're numbered from 1.
 
 -- * PolymerModel as used during modeling.
@@ -95,7 +97,6 @@ extractPolymer i j k n topo = do (_, _, monomerAndTail)   <- tagError "Cannot fi
                                                              linkerAndTail  `cutTopoAt`   findResId (k+1)
                                  return $! makePolymer monomer linker n
   where
-    numberedTopo = renumberResiduesT 1 topo
     -- TODO: tagError may be generic transformation from Maybe monad to Either monad! (Or `ifMissing`?)
     tagError :: String -> Maybe a -> Either String a
     tagError msg = maybe (Left msg) Right
@@ -154,7 +155,7 @@ samplePolymer fragSet poly gen = if pos <= monomerLen poly
 
 -- | Sampling method to be applied to whole PolymerModel.
 samplePolymerModel :: RandomGen t => RFragSet -> PolymerModel -> t -> (PolymerModel, t)
-samplePolymerModel fragSet polyModel gen = debugging $
+samplePolymerModel fragSet polyModel gen = debuggingOn $
                                             (PModel { polymer = poly'
                                                     , tPoly   = topo'
                                                     , cPoly   = computePositions topo'
@@ -162,8 +163,8 @@ samplePolymerModel fragSet polyModel gen = debugging $
   where
     (poly', gen') = samplePolymer fragSet (polymer polyModel) gen
     topo' = instantiate poly'
-    debugging  = id
-    debugging' = traceShow ( "samplePolymerModel"
-                          , monomerLen $ polymer polyModel
-                          , linkerLen  $ polymer polyModel)
+    debuggingOff = id
+    debuggingOn  = traceShow ( "samplePolymerModel"
+                             , monomerLen $ polymer polyModel
+                             , linkerLen  $ polymer polyModel)
 

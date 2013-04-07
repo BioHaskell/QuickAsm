@@ -74,16 +74,16 @@ randomReplace fragset topo gen = case replaceFragment pos frag topo of
                                                                 , show frag ]
   where
     -- Just topo' = replaceFragment pos frag topo -- TODO: fix a bug that causes this failure!
-    --topo' = fromMaybe topo $ replaceFragment pos frag topo
+    -- topo' = fromMaybe topo $ replaceFragment pos frag topo
     ((pos, frag), gen') = randomF fragset gen
 
 -- | Replaces a fragment at a given position in the topology.
 replaceFragment :: Int -> F.RFrag -> Tree Torsion -> Maybe (Tree Torsion)
-replaceFragment pos frag topo = debugging $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
+replaceFragment pos frag topo = debuggingOn $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
   where
     -- DEBUG:
-    debugging = id
-    --debugging = traceShow ("replaceFragment", pos, frag, availablePositions topo) 
+    debuggingOff = id
+    debuggingOn  = traceShow ("replaceFragment", pos, frag, availablePositions topo) 
     availablePositions = map (tResId &&& tAtName) . backbone
 
 -- | Changes a topology at a first backbone position given by a predicate (if such a position is found.)
@@ -144,7 +144,8 @@ applyFragment vres t = assertions $ replaceBackboneDihedrals dihes t
 
 -- | Maps a function over the last element of the list, and returns modified list.
 mapLastElement ::  (t -> t) -> [t] -> [t]
-mapLastElement f []     = errorWithStack "mapLastElement called on an empty list!"
+--mapLastElement f []     = errorWithStack "mapLastElement called on an empty list!"
+mapLastElement f []     = []
 mapLastElement f [c]    = [f c]
 mapLastElement f (c:cs) = c:mapLastElement f cs
 
