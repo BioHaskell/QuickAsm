@@ -114,10 +114,6 @@ topo `cutTopoAt` pred = do (context, lastAt, tail) <- topo `splitTopoAt` pred
                            return $! ( context $ cTerminus lastAt tail
                                      , tail )
 
--- | Checks that a topology has OXT at the end.
-hasOXT :: TorsionTopo -> Bool
-hasOXT = (\t -> tAtName t == "OXT") . last . backbone
-
 -- | Computes C-terminus, given a last backbone atom of a chain, and maybe
 -- continuation of a backbone that could be used to copy omega angle.
 lastAt `cTerminus` tail = tOXT resName resId omega

@@ -12,6 +12,9 @@ module Topo( Tree          (..)
            , xferT
 
            , tOXT
+           , hasOXT
+
+           , tShowRes
 
            , proteinBackboneT
            , constructBackbone
@@ -38,6 +41,8 @@ module Topo( Tree          (..)
 
            , renumberAtomsT
            , renumberAtomsC
+
+           , lastResidueId
            ) where
 
 import System.IO
@@ -101,6 +106,10 @@ type TorsionTopo   = Tree Torsion
 -- | Molecule topology in cartesian coordinates.
 type CartesianTopo = Tree Cartesian
 
+-- | Ordinal number of the last residue in the Topology.
+lastResidueId ::  Tree Torsion -> Int
+lastResidueId = tResId . last . backbone
+
 -- * Visualization
 instance Show Cartesian where
   show = showCartesian
@@ -132,13 +141,16 @@ printPDBAtom outh (Cartesian { cPos     = position
                                             (v3y position)
                                             (v3z position)
 
+-- | Shows residue name and number in a conventional way.
+tShowRes ::  Torsion -> [Char]
+tShowRes tors = tResName tors ++ show (tResId tors)
+
 -- | Computes aminoacid sequence in a topology. Result is given as string
 -- of FASTA codes.
 topo2sequence ::  Tree Torsion -> [Char]
 topo2sequence = map (resname2fastacode . tResName) . filter isCAlpha . backbone
   where
     isCAlpha rec = tAtName rec == "CA" 
-
 
 -- * Backbone construction from residue sequence and coordinates.
 -- | Creates protein backbone from residue name, identifier and torsion angles.
@@ -229,6 +241,10 @@ constructBackbone recs = head $ constructBackbone' recs [cterminus]
 
 -- | Adds OXT at the end.
 tOXT resName resId omega = Node (atWithDihe resName resId "OXT" omega) []
+
+-- | Checks that a topology has OXT at the end.
+hasOXT :: TorsionTopo -> Bool
+hasOXT = (\t -> tAtName t == "OXT") . last . backbone
 
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 

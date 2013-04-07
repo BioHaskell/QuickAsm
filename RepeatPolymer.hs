@@ -51,7 +51,6 @@ makePolymer monomerTopo linkerTopo repeats = Polymer {
     monomerTopo' = renumberResiduesT 1             monomerTopo
     linkerTopo'  = renumberResiduesT (monoLen + 1) linkerTopo
     monoLen = lastResidueId monomerTopo'
-    lastResidueId = tResId . last . backbone -- assuming they're numbered from 1.
 
 -- * PolymerModel as used during modeling.
 -- | Polymer model data structure and its cached expansions.
