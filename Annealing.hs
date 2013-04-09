@@ -10,6 +10,7 @@ import System.Random
 import Control.DeepSeq(NFData(..), deepseq)
 
 import Util.Timing
+import Util.Monad
 import qualified Rosetta.Fragments as F
 import Score.ScoringFunction
 import Score.ScoreSet
@@ -50,19 +51,6 @@ annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages ste
 torsionFragSampler :: F.RFragSet -> Modelling TorsionModel -> IO (Modelling TorsionModel)
 torsionFragSampler fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
 
--- * Internal functions for starting and performing a given number of annealing stages.
-
-infix 4 `timesM`
-composeM ::  Monad m => (a -> m b) -> (b -> m c) -> a -> m c
-composeM a b t = do r <- a t
-                    b r
--- TODO: check why it leaks stack space...
---timesM n = foldl1 composeM . replicate n
-
-timesM :: (Monad m, NFData a) => Int -> (a -> m a) -> a -> m a
-timesM 0 f a = return a
-timesM n f a = do b <- f a
-                  b `deepseq` timesM (n-1) f b
 -- | Runs a single sampling trial at a given temperature.
 samplingStep :: (Modelling m -> IO (Modelling m))-> Double -> (AnnealingState m) -> IO (AnnealingState m)
 samplingStep sampler temperature annState =

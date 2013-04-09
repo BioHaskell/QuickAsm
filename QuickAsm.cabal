@@ -35,10 +35,11 @@ Library
                     Score.Sparta
                     AtomParams,
                     FragReplace,
-                    Model, Modelling, Annealing,
+                    Model, Modelling,
+                    Annealing, REMC,
                     RepeatPolymer
   other-modules:    IdealGeomParams,
-                    Util.Geom, Util.MyPrintf, Util.Process,
+                    Util.Geom, Util.MyPrintf, Util.Process, Util.Monad,
                     Data.Tree.Util
   exposed:          True
 

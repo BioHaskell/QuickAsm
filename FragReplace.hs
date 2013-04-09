@@ -16,7 +16,9 @@ module FragReplace( randomV
 
                   , replaceBackboneDihedrals
                   , metropolisCriterion
-                  , checkMetropolisCriterionR
+                  , checkCriterionR
+                  , checkCriterionIO
+                  --, checkMetropolisCriterionR
                   , checkMetropolisCriterion
                   , validFragments
                   , checkFragments
@@ -163,15 +165,21 @@ metropolisCriterion temp oldScore newScore = if diff < 0
     diff     = newScore - oldScore
     maxScore = 100
 
--- | Checks Metropolis criterion, if given parameters, and a random number generator.
-checkMetropolisCriterionR :: (RandomGen t) => Double -> Double -> Double -> t -> (Bool, t)
-checkMetropolisCriterionR temp old new gen = (r < metropolisCriterion temp old new, gen')
+-- | Returns a Bool value with a given probability for True
+checkCriterionR p gen = (r <= p, gen')
   where
     (r, gen') = randomR (0.0, 1.0) gen
 
+checkCriterionIO :: Double -> IO Bool
+checkCriterionIO = getStdRandom . checkCriterionR
+
+-- | Checks Metropolis criterion, if given parameters, and a random number generator.
+checkMetropolisCriterionR :: (RandomGen t) => Double -> Double -> Double -> t -> (Bool, t)
+checkMetropolisCriterionR temp old new = checkCriterionR $ metropolisCriterion temp old new
+
 -- | Checks Metropolis criterion within IO monad.
 checkMetropolisCriterion :: Double -> Double -> Double -> IO Bool
-checkMetropolisCriterion temp old new = getStdRandom $ checkMetropolisCriterionR temp old new
+checkMetropolisCriterion temp old new = checkCriterionIO $ metropolisCriterion temp old new
 
 -- | Validates that fragments in RFragSet refer to positions present in a
 -- given Torsion topology, and returns valid subset, and a list of positions
