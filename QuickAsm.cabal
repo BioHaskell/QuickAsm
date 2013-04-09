@@ -1,5 +1,5 @@
 name:                QuickAsm
-version:             0.2
+version:             0.3
 stability:           alpha
 homepage:            https://github.com/mgajda/QuickAsm
 package-url:         http://hackage.haskell.org/package/QuickAsm
