@@ -4,6 +4,7 @@ module Annealing( AnnealingState(..)
                 , annealingProtocol
                 , initAnnealing
                 , performAnnealing
+                , annealingStage
                 , torsionFragSampler ) where
 
 import System.Random

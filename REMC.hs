@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts, UndecidableInstances, ScopedTypeVariables #-}
 -- | Annealing protocol abstracting from Model representation.
 module REMC( REMCState(..)
            , Replica  (..)
@@ -67,9 +67,6 @@ data REMCState m = REMCState { replicas     :: [Replica m]
                              , temperatures :: [Double]
                              }
 
-remc :: [Modelling m] -> [Double] -> [Modelling m]
-remc = undefined
-
 -- * Showing replicas and REMC state
 instance Show (Replica m) where
   show replica = concat [ "Replica ",  show $ replId replica
@@ -104,8 +101,7 @@ instance (NFData (Replica m)) => NFData (REMCState m) where
 
 remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSet =
   do remcState <- initREMC scoreSet temperatures modelSet
-     numExchanges `timesM` remcStep sampler $ remcState
-          
+     numExchanges `timesM` remcStep sampler stepsPerExchange $ remcState
 
 initREMC scoreSet temperatures modelSet =
   do assertM $ length temperatures == length modelSet
@@ -113,89 +109,15 @@ initREMC scoreSet temperatures modelSet =
      let replicas = zipWith Replica annStates [1..]
      return $! REMCState replicas temperatures
 
-remcStep :: (Modelling m -> IO (Modelling m)) -> (REMCState m) -> IO (REMCState m)
-remcStep sampler remcState = undefined
-
-{-
--- | A single temperature stage of annealing protocol with a given number
--- of sampler trials.
-annealingStage :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
-annealingStage sampler steps temperature annealingState = time "Annealing stage" $ 
-    do newState <- steps `timesM` samplingStep sampler temperature $ annealingState
-       putStrLn $ show newState
-       return newState
- -}
-
-{-
--- * Interface
--- | Complete annealing protocol from a given starting topology, with a
--- given Modelling object.  Parametrized by initial model (last argument),
--- and sampling trial step (first argument).
-annealingProtocol :: (NFData m, Model m) => (Modelling m -> IO (Modelling m))-> ScoringFunction-> Double-> Double-> Int-> Int-> m -> IO (AnnealingState m)
-annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages steps initialModel =
-    do initialState <- initAnnealing scoreSet initialModel
-       performAnnealing sampler initialTemperature temperatureDrop stages steps initialState
-
--- * Sampler function template
--- | Example sampling function for TorsionModel                           
-torsionFragSampler :: F.RFragSet -> Modelling TorsionModel -> IO (Modelling TorsionModel)
-torsionFragSampler fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
-
--- * Internal functions for starting and performing a given number of annealing stages.
-
-infix 4 `timesM`
-composeM ::  Monad m => (a -> m b) -> (b -> m c) -> a -> m c
-composeM a b t = do r <- a t
-                    b r
--- TODO: check why it leaks stack space...
---timesM n = foldl1 composeM . replicate n
-
-timesM :: (Monad m, NFData a) => Int -> (a -> m a) -> a -> m a
-timesM 0 f a = return a
-timesM n f a = do b <- f a
-                  b `deepseq` timesM (n-1) f b
-
--- | Runs a single sampling trial at a given temperature.
-samplingStep :: (Modelling m -> IO (Modelling m))-> Double -> (AnnealingState m) -> IO (AnnealingState m)
-samplingStep sampler temperature annState =
-  do newMdl <- sampler $ current annState
-     let newScore = modelScore newMdl
-     crit <- checkMetropolisCriterion temperature (modelScore $ current annState) newScore
-     return $! annState { successes = if crit
-                                         then successes annState + 1
-                                         else successes annState
-                        , current   = if crit
-                                         then newMdl
-                                         else current annState
-                        , best      = if newScore < modelScore (best annState)
-                                         then newMdl
-                                         else best annState }
--- TODO: here verify consistency of model and fragset!
--- | Initializes annealing by creating Modelling objects, and AnnealingState
-initAnnealing :: (Model m) => ScoringFunction -> m -> IO (AnnealingState m)
-initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
-                                return $! AnnState { best      = mdling
-                                                   , current   = mdling
-                                                   , successes = 0
-                                                   , stages    = 0
-                                                   , steps     = 0
-                                                   }
-
-
--- | A single temperature stage of annealing protocol with a given number
--- of sampler trials.
-annealingStage :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
-annealingStage sampler steps temperature annealingState = time "Annealing stage" $ 
-    do newState <- steps `timesM` samplingStep sampler temperature $ annealingState
-       putStrLn $ show newState
-       return newState
-
--- | Performs N stages of M steps of Metropolis MC annealing protocol with
--- a given, initial temperature, temperature drop, and sampling step function.
-performAnnealing :: NFData m =>(Modelling m -> IO (Modelling m))-> Double -> Double-> Int -> Int -> AnnealingState m -> IO (AnnealingState m)
-performAnnealing sampler initialTemperature temperatureDrop stages steps =
-    foldl1 composeM $ map (annealingStage sampler steps) temperatures
+remcStep :: (NFData m) => (Modelling m -> IO (Modelling m)) -> Int -> (REMCState m) -> IO (REMCState m)
+remcStep sampler steps remcState = do annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState) $
+                                        (\(replica, temperature) -> annealingStage sampler steps temperature $ ann replica)
+                                      exchanges $! remcState { replicas = zipWith updateReplica (replicas remcState) annStates }
   where
-    temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
--}
+    updateReplica replica newAnnState = replica { ann = newAnnState }
+    -- for now only sequential evaluation...
+    jobRunner = forM
+    -- later one can use some kind of parallel jobRunner:
+    -- 1. Parallel monad
+    -- 2. Cloud Haskell
 
