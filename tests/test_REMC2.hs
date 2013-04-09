@@ -5,6 +5,7 @@ module Main where
 import System.Random(randomRIO)
 
 import Test.QuickCheck.All
+import Test.QuickCheck.Monadic
 import Test.QuickCheck
 
 import Score.ScoringFunction
@@ -49,6 +50,12 @@ prop_criterion_monotonic (Positive t1) (Positive tDelta) (Positive e1) (Positive
     t2 = t1 + tDelta -- guarantees t1 < t2
     c2 = exchangeCriterion t1 t2 e1 e2
     c3 = exchangeCriterion t1 t2 e1 e3
+
+prop_checkExchange_certain_drop (Positive t1) (Positive tDelta) (Positive eDelta) (Positive e2) = (t1 < t2) && (e1 > e2) ==>
+                                                                                                  monadicIO $ run $ checkExchangeCriterion t1 t2 e1 e2
+  where
+    e1 = e2 + eDelta
+    t2 = t1 + tDelta -- guarantees t1 < t2
 
 main = $quickCheckAll
 
