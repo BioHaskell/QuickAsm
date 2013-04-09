@@ -36,11 +36,12 @@ import           Annealing
 -- Note that first argument always corresponds to lower temperature,
 -- and second to higher temperature.
 exchangeCriterion ::  Double -> Double -> Double -> Double -> Double
-exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
+{-exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
                                   if e2 < e1
                                     then 1.0
                                     else 0.0
-exchangeCriterion' t1 t2 e1 e2 = assert (t1 < t2) $
+ -}
+exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
                                    min 1 $ exp $ (e1 - e2) * (1/t1 - 1/t2)
 
 -- | Checks Metropolis criterion, if given parameters, and a random number generator.
