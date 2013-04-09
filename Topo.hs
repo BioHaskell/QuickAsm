@@ -142,12 +142,12 @@ printPDBAtom outh (Cartesian { cPos     = position
                                             (v3z position)
 
 -- | Shows residue name and number in a conventional way.
-tShowRes ::  Torsion -> [Char]
+tShowRes ::  Torsion -> String
 tShowRes tors = tResName tors ++ show (tResId tors)
 
 -- | Computes aminoacid sequence in a topology. Result is given as string
 -- of FASTA codes.
-topo2sequence ::  Tree Torsion -> [Char]
+topo2sequence ::  Tree Torsion -> String
 topo2sequence = map (resname2fastacode . tResName) . filter isCAlpha . backbone
   where
     isCAlpha rec = tAtName rec == "CA" 

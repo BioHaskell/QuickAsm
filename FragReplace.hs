@@ -29,7 +29,7 @@ module FragReplace( randomV
 import System.Environment
 import System.Random (randomR, getStdRandom, RandomGen)
 import System.Exit   (exitFailure, exitSuccess)
-import Control.Monad (when)
+import Control.Monad (unless)
 import Control.Arrow ((***), (&&&))
 import System.IO     (hPutStrLn, stderr)
 import Data.Maybe    (fromMaybe)
@@ -113,8 +113,8 @@ splitTopoAt' t@(Node a forest) pred lastAt context          = splitTopoAt' (last
 -- C-terminal OXT.
 cutTopoAt :: TorsionTopo -> (Torsion -> Bool) -> Maybe (TorsionTopo, TorsionTopo)
 topo `cutTopoAt` pred = do (context, lastAt, tail) <- topo `splitTopoAt` pred
-                           return $! ( context $ cTerminus lastAt tail
-                                     , tail )
+                           return ( context $ cTerminus lastAt tail
+                                  , tail )
 
 -- | Computes C-terminus, given a last backbone atom of a chain, and maybe
 -- continuation of a backbone that could be used to copy omega angle.
@@ -199,7 +199,7 @@ validFragments tTopo = (F.RFragSet *** (V.toList . V.map (whichNotInRange . pos 
 
 -- | Checks consistency between topology and fragment set. Returns subset
 -- of fragments at valid positions, and print invalid positions to stderr.
-checkFragments tTopo fragSet = do when (not $ null invalidPositions) $
+checkFragments tTopo fragSet = do unless (null invalidPositions) $
                                     hPutStrLn stderr $ "Dropping fragments referring to positions absent in topology: " ++
                                                        L.intercalate ", " (map show invalidPositions)
                                   return fragSet'

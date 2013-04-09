@@ -12,29 +12,6 @@ import Score.ScoringFunction
 import Model
 import REMC
 
--- | Fake Model instance, holding just its score.
-newtype TestModel = TestModel { unTestModel :: Double }
-
-newModel = sampler $! TestModel 0.0
-
-sampler (TestModel v) = do r <- randomRIO (0.0, 1.0)
-                           return $! TestModel $ v + r
-             
-
-instance Model TestModel where
-  torsionTopo   _ = undefined
-  cartesianTopo _ = undefined
-
-testScore :: ScoringFunction
-testScore = ScoringFunction { scoreShow  = \m -> return [""]
-                            , scoreLabel = name 
-                            , scores     = \m -> undefined -- return [(name, unTestModel m)]
-                            , components = [testScore]
-                            }
-  where
-    name = "TestScore"
-
-
 prop_criterion_certain_drop (Positive t1) (Positive tDelta) (Positive eDelta) (Positive e2) = (t1 < t2) && (e1 > e2) ==> exchangeCriterion t1 t2 e1 e2 == 1.0
   where
     e1 = e2 + eDelta

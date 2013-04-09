@@ -1,6 +1,6 @@
 -- | Variant of a System.Process.readProcessWithExitCode that 
 -- also changes working directory.
-{-# LANGUAGE CPP, InterruptibleFFI, Trustworthy, ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, InterruptibleFFI, Trustworthy #-}
 module Util.Process(readProcessWithExitCodeAndWorkingDir) where
 
 import Prelude hiding (mapM)

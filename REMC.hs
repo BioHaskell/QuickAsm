@@ -14,7 +14,7 @@ import           Control.Exception(assert)
 import           Data.List(intercalate)
 import           Control.Arrow((&&&))
 import           Control.Monad(forM)
-import           System.IO(hPutStrLn, stderr)
+import           System.IO(hPutStrLn, hPrint, stderr)
 
 import qualified Rosetta.Fragments as F
 import           Util.Monad
@@ -54,7 +54,7 @@ checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCri
                                                            " result: ", show result]
                                         return result
 
-correctREMCState = (uncurry (==)) . (length . replicas &&& length . temperatures)
+correctREMCState = uncurry (==) . (length . replicas &&& length . temperatures)
 
 multiExchanges n remcSt = n `timesM` remcSt
 
@@ -63,7 +63,7 @@ multiExchanges n remcSt = n `timesM` remcSt
 -- it is possible for it to reach lowest temperature in a single round of exchanges.
 exchanges ::  REMCState m -> IO (REMCState m)
 exchanges remcSt = do assertM $ correctREMCState remcSt
-                      replicas' <- (uncurry exchange) . (replicas &&& temperatures) $ remcSt
+                      replicas' <- uncurry exchange . (replicas &&& temperatures) $ remcSt
                       let remcSt' = remcSt { replicas = replicas' }
                       assertM $ correctREMCState remcSt'
                       return $! remcSt' 
@@ -75,7 +75,7 @@ exchanges remcSt = do assertM $ correctREMCState remcSt
                                                   return $! ra:rbs
                                           else do rbs <- exchange (ra:rs) (tb:ts)
                                                   return $! rb:rbs
-    exchange [ra]       [ta]       = return $! [ra]
+    exchange [ra]       [ta]       = return [ra]
 
 -- * Annealing state parametrized by Modelling environment.
 -- | Holds current and best models, number of successes, stages, and steps.
@@ -114,7 +114,7 @@ instance (NFData (AnnealingState m)) => NFData (Replica m) where
   rnf = rnf . ann
 
 instance (NFData (Replica m)) => NFData (REMCState m) where
-  rnf = (uncurry seq) . (rnf . replicas &&& rnf . temperatures)
+  rnf = uncurry seq . (rnf . replicas &&& rnf . temperatures)
 
 -- TODO: parallel REMC stage (using CloudHaskell), and reasonable switching option.
 -- TODO: check sampler compatibility with Annealing module.
@@ -133,7 +133,7 @@ remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSe
   where
     remcStageAndReport sampler steps remcSt = do remcSt' <- remcStage sampler stepsPerExchange remcSt
                                                  hPutStrLn stderr "REMC stage: "
-                                                 hPutStrLn stderr $ show remcSt' -- DEBUG
+                                                 hPrint stderr remcSt' -- DEBUG
                                                  return remcSt'
 
 -- | Initialize state of REMC protocol.
@@ -147,7 +147,7 @@ initREMC scoreSet temperatures modelSet =
 -- | A single stage of N annealing steps per replica, and a single exchange.
 -- Takes a sampling step as a parameter.
 remcStage :: NFData m => (Modelling m -> IO (Modelling m))-> Int -> REMCState m -> IO (REMCState m)
-remcStage sampler steps remcState = do annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState) $
+remcStage sampler steps remcState = do annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState)
                                          (\(replica, temperature) -> annealingStage sampler steps temperature $ ann replica)
                                        remcState' <- exchanges $! remcState { replicas = zipWith updateReplica (replicas remcState) annStates }
                                        print "Exchange done!"

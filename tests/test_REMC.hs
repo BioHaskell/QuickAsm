@@ -56,12 +56,12 @@ debugFragSet fragSet = do putStrLn $ "Fragment set length: "             ++ (sho
                           putStrLn $ "Fragment set starting positions: " ++ showEach F.startPos fragSet
                           putStrLn $ "Fragment set ending   positions: " ++ showEach F.endPos   fragSet
   where
-    showEach projection = intercalate " " . map show . V.toList . V.map (projection . V.head) . F.unRFragSet
+    showEach projection = unwords . map show . V.toList . V.map (projection . V.head) . F.unRFragSet
 
 debugPolymer ::  Polymer -> String -> String -> IO ()
 debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (show . hasOXT . monomer) polymer
                                             putStrLn $ "Polymer has OXT:" ++ (show . hasOXT . linker ) polymer
-                                            putStrLn $ "Monomer residues:" ++ (intercalate " " . nub . map tShowRes . backbone . monomer ) polymer
+                                            putStrLn $ "Monomer residues:" ++ (unwords . nub . map tShowRes . backbone . monomer ) polymer
                                             putStrLn $ "Extracted monomer seq: "   ++ monoSeq2
                                             putStrLn $ "Extracted linker  seq: "   ++ linkerSeq2
                                             putStrLn $ "Recorded monomer length: " ++ (show . monomerLen)       polymer
@@ -112,7 +112,7 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
                                   let stepsPerExchange = 1
                                   let numExchanges     = numReplicas
                                   putStrLn "Temperatures: "
-                                  putStrLn $ intercalate " " $ map (\t -> showFFloat (Just 3) t "") temperatures
+                                  putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
                                   lastReplica <- polymerOfLastReplica `fmap`
                                                    remcProtocol polySampler scoreSet temperatures stepsPerExchange numExchanges iniModels
                                   --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer

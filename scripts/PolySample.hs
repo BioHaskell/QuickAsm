@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, GADTs, StandaloneDeriving #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, GADTs #-}
 module Main where
 
 import System.Environment

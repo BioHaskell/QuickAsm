@@ -53,7 +53,7 @@ torsionFragSampler :: F.RFragSet -> Modelling TorsionModel -> IO (Modelling Tors
 torsionFragSampler fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
 
 -- | Runs a single sampling trial at a given temperature.
-samplingStep :: (Modelling m -> IO (Modelling m))-> Double -> (AnnealingState m) -> IO (AnnealingState m)
+samplingStep :: (Modelling m -> IO (Modelling m))-> Double -> AnnealingState m -> IO (AnnealingState m)
 samplingStep sampler temperature annState =
   do newMdl <- sampler $ current annState
      let newScore = modelScore newMdl
@@ -71,12 +71,12 @@ samplingStep sampler temperature annState =
 -- | Initializes annealing by creating Modelling objects, and AnnealingState
 initAnnealing :: (Model m) => ScoringFunction -> m -> IO (AnnealingState m)
 initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
-                                return $! AnnState { best      = mdling
-                                                   , current   = mdling
-                                                   , successes = 0
-                                                   , stages    = 0
-                                                   , steps     = 0
-                                                   }
+                                return AnnState { best      = mdling
+                                                , current   = mdling
+                                                , successes = 0
+                                                , stages    = 0
+                                                , steps     = 0
+                                                }
 
 
 -- | A single temperature stage of annealing protocol with a given number
@@ -84,7 +84,7 @@ initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
 annealingStageWithReport :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
 annealingStageWithReport sampler steps temperature annealingState = time "Annealing stage" $
     do newState <- annealingStage sampler steps temperature annealingState
-       putStrLn $ show newState
+       print newState
        return newState
 
 annealingStage sampler steps temperature annealingState =
