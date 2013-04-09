@@ -199,7 +199,7 @@ validFragments tTopo = (F.RFragSet *** (V.toList . V.map (whichNotInRange . pos 
 
 -- | Checks consistency between topology and fragment set. Returns subset
 -- of fragments at valid positions, and print invalid positions to stderr.
-checkFragments tTopo fragSet = do when (length invalidPositions > 0) $
+checkFragments tTopo fragSet = do when (not $ null invalidPositions) $
                                     hPutStrLn stderr $ "Dropping fragments referring to positions absent in topology: " ++
                                                        L.intercalate ", " (map show invalidPositions)
                                   return fragSet'

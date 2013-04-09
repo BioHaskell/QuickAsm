@@ -37,31 +37,43 @@ import           Annealing
 -- and second to higher temperature.
 exchangeCriterion ::  Double -> Double -> Double -> Double -> Double
 exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
-                                  min 1 $ exp $ (e1 - e2) * (1/t1 - 1/t2)
+                                  if e2 < e1
+                                    then 1.0
+                                    else 0.0
+exchangeCriterion' t1 t2 e1 e2 = assert (t1 < t2) $
+                                   min 1 $ exp $ (e1 - e2) * (1/t1 - 1/t2)
 
 -- | Checks Metropolis criterion, if given parameters, and a random number generator.
-checkExchangeCriterion :: Double -> Double -> Double -> t -> IO Bool
-checkExchangeCriterion t1 t2 e1 e2 = checkCriterionIO $ exchangeCriterion t1 t2 e1 t2 
+checkExchangeCriterion :: Double -> Double -> Double -> Double -> IO Bool
+checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCriterion t1 t2 e1 e2
+                                        putStrLn $ concat ["Exchange criterion T1=", showFloat t1,
+                                                           " T2=", showFloat t2,
+                                                           " E1=", showFloat e1,
+                                                           " E2=", showFloat e2,
+                                                           " result: ", show result]
+                                        return result
 
 correctREMCState = (uncurry (==)) . (length . replicas &&& length . temperatures)
+
+multiExchanges n remcSt = n `timesM` remcSt
 
 -- | Perform a single iteration of replica exchange attempts between neighbouring replicas.
 -- Does it in a such way, that if a lowest score appears at highest temperature,
 -- it is possible for it to reach lowest temperature in a single round of exchanges.
 exchanges ::  REMCState m -> IO (REMCState m)
-exchanges remcSt = do assertM (correctREMCState remcSt)
+exchanges remcSt = do assertM $ correctREMCState remcSt
                       replicas' <- (uncurry exchange) . (replicas &&& temperatures) $ remcSt
                       let remcSt' = remcSt { replicas = replicas' }
-                      assertM (correctREMCState remcSt')
+                      assertM $ correctREMCState remcSt'
                       return $! remcSt' 
   where
     exchange :: [Replica m] -> [Double] -> IO [Replica m]
     exchange (ra:rb:rs) (ta:tb:ts) = do cond <- checkExchangeCriterion tb ta (replicaScore rb) (replicaScore ra)
                                         if not cond
                                           then do rbs <- exchange (rb:rs) (tb:ts)
-                                                  return $ ra:rbs
+                                                  return $! ra:rbs
                                           else do rbs <- exchange (ra:rs) (tb:ts)
-                                                  return $ rb:rbs
+                                                  return $! rb:rbs
     exchange [ra]       [ta]       = return $! [ra]
 
 -- * Annealing state parametrized by Modelling environment.

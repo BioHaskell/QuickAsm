@@ -110,7 +110,7 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
                                   let iniModels        = replicate numReplicas $ makePolymerModel polymer -- TODO: use initial models within a polymer?
                                   let temperatures     = take numReplicas $ iterate (*0.9) 1.0
                                   let stepsPerExchange = 1
-                                  let numExchanges     = 1
+                                  let numExchanges     = numReplicas
                                   putStrLn "Temperatures: "
                                   putStrLn $ intercalate " " $ map (\t -> showFFloat (Just 3) t "") temperatures
                                   lastReplica <- polymerOfLastReplica `fmap`
