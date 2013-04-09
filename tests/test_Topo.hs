@@ -5,6 +5,7 @@ import Data.Vector.V3
 import Data.Vector.Class
 import Topo
 import Numeric(showFFloat)
+import Util.Show
 
 exampleTorsions = [("GLY",    0.000, 177.618, 176.418),
                    ("ARG", -128.131, 136.491, 178.184),
@@ -25,11 +26,6 @@ showFloatTriples = join '\n'. map (join ' ') . triples . map showFloat
 
 join c = foldl1 $ joiner c
 joiner c a b = a ++ c:b
-
-showFloat :: (RealFloat f) => f -> String
-showFloat f = adjust 9 $ showFFloat (Just 3) f ""
-  where
-    adjust i l = iterate (' ':) l !! (i - length l)
 
 showFloats :: (RealFloat f) => [f] -> String
 showFloats l = join ' ' $ map showFloat l

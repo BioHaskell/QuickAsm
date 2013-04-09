@@ -11,6 +11,7 @@ import qualified Data.Vector as V
 import           Data.List(intercalate, nub)
 import           Control.Arrow((&&&))
 import           Numeric(showFFloat)
+import           Control.DeepSeq(deepseq)
 
 import           Rosetta.Silent
 import qualified Rosetta.Fragments as F
@@ -101,7 +102,7 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
                                   debugFragSet fragSet
                                   let polySampler = modelling $ \m -> getStdRandom $ samplePolymerModel fragSet m
                                   let polySampler' m = do r <- polySampler m
-                                                          debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
+                                                          r `deepseq` debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
                                                           return r
                                   --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
                                   --tests/test_REMC.hs

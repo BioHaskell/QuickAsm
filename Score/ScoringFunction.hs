@@ -10,6 +10,7 @@ module Score.ScoringFunction( ScoringFunction (..)
 
 import qualified Data.ByteString.Char8 as BS
 import System.IO(stdout, hPutStrLn)
+import Util.Show(bAdjust)
 
 import Model
 
@@ -57,14 +58,10 @@ simpleScoringFunction name fun detailsFun = self
 showScores :: [(BS.ByteString, Double)] -> BS.ByteString
 showScores labelledScores = mkLine labels `BS.append` mkLine numbers
   where
-    mkLine columns = "," `BS.intercalate` zipWith adjust lens columns
+    mkLine columns = "," `BS.intercalate` zipWith bAdjust lens columns
     lens           = zipWith max (map BS.length labels )
                                  (map BS.length numbers)
     numbers        = map (BS.pack . show . snd) labelledScores
     labels         = map fst                    labelledScores
-
--- | Right justifies a ByteString to reach a given length.
-adjust ::  Int -> BS.ByteString -> BS.ByteString
-adjust i l = BS.replicate (i - BS.length l) ' ' `BS.append` l
 
 

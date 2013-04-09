@@ -3,15 +3,20 @@ module Util.Monad( timesM
                  , composeM ) where
 
 import Control.DeepSeq
+import Control.Category
+import Control.Monad((>=>))
 
 -- * Functions for starting and performing a given number of annealing stages.
 
 -- | Compose two monadic action (possibly Kleisli Category composition?)
 -- TODO: Strictly evaluate result after first action.
-composeM ::  Monad m => (a -> m b) -> (b -> m c) -> a -> m c
+composeM ::  (NFData b, Monad m) => (a -> m b) -> (b -> m c) -> a -> m c
 composeM a b t = do r <- a t
+                    r `deepseq` b r
                     b r
---                  r `deepseq` b r
+
+composeM2 ::  Monad m => (a -> m b) -> (b -> m c) -> a -> m c
+composeM2 = (Control.Monad.>=>)
 
 -- TODO: check why it leaks stack space...
 --timesM n = foldl1 composeM . replicate n

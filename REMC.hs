@@ -14,12 +14,13 @@ import           Control.Exception(assert)
 import           Data.List(intercalate)
 import           Control.Arrow((&&&))
 import           Control.Monad(forM)
-import           Numeric(showFFloat)
+import           System.IO(hPutStrLn, stderr)
 
 import qualified Rosetta.Fragments as F
 import           Util.Monad
 import           Util.Timing
 import           Util.Assert(assertM)
+import           Util.Show(adjust, showFloat)
 import           Score.ScoringFunction
 import           Score.ScoreSet
 import           Topo
@@ -91,12 +92,10 @@ replicaScore = modelScore . current . ann
 
 -- | Shows replica id, energy and current temperature together.
 showReplicaState :: (Replica m, Double) -> String
-showReplicaState (repl, temp) = concat [      show  $ replId repl,
-                                         ":", showF $ replicaScore repl, -- replica's current score
-                                         "@", showF   temp               -- replica's current temperature
+showReplicaState (repl, temp) = concat [      adjust  2 $ show      $ replId       repl,
+                                         ":", adjust 12 $ showFloat $ replicaScore repl, -- replica's current score
+                                         "@", adjust  5 $ showFloat   temp               -- replica's current temperature
                                        ]
-  where
-    showF f = showFFloat (Just 3) f ""
 
 instance (NFData (AnnealingState m)) => NFData (Replica m) where
   rnf = rnf . ann
@@ -115,10 +114,13 @@ remcProtocol :: (NFData m, Model m) => (Modelling m -> IO (Modelling m)) ->
                                        [m] -> IO (REMCState m)
 remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSet =
   do remcState <- initREMC scoreSet temperatures modelSet
+     putStr "Expected number of exchanges: "
+     print numExchanges
      numExchanges `timesM` remcStageAndReport sampler stepsPerExchange $ remcState
   where
     remcStageAndReport sampler steps remcSt = do remcSt' <- remcStage sampler stepsPerExchange remcSt
-                                                 print remcSt' -- DEBUG
+                                                 hPutStrLn stderr "REMC stage: "
+                                                 hPutStrLn stderr $ show remcSt' -- DEBUG
                                                  return remcSt'
 
 -- | Initialize state of REMC protocol.
@@ -134,7 +136,10 @@ initREMC scoreSet temperatures modelSet =
 remcStage :: NFData m => (Modelling m -> IO (Modelling m))-> Int -> REMCState m -> IO (REMCState m)
 remcStage sampler steps remcState = do annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState) $
                                          (\(replica, temperature) -> annealingStage sampler steps temperature $ ann replica)
-                                       exchanges $! remcState { replicas = zipWith updateReplica (replicas remcState) annStates }
+                                       remcState' <- exchanges $! remcState { replicas = zipWith updateReplica (replicas remcState) annStates }
+                                       print "Exchange done!"
+                                       print remcState'
+                                       return remcState'
   where
     updateReplica replica newAnnState = replica { ann = newAnnState }
     -- for now only sequential evaluation...
