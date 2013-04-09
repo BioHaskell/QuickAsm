@@ -81,17 +81,20 @@ initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
 
 -- | A single temperature stage of annealing protocol with a given number
 -- of sampler trials.
-annealingStage :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
-annealingStage sampler steps temperature annealingState = time "Annealing stage" $ 
-    do newState <- steps `timesM` samplingStep sampler temperature $ annealingState
+annealingStageWithReport :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
+annealingStageWithReport sampler steps temperature annealingState = time "Annealing stage" $
+    do newState <- annealingStage sampler steps temperature annealingState
        putStrLn $ show newState
        return newState
+
+annealingStage sampler steps temperature annealingState =
+       steps `timesM` samplingStep sampler temperature $ annealingState
 
 -- | Performs N stages of M steps of Metropolis MC annealing protocol with
 -- a given, initial temperature, temperature drop, and sampling step function.
 performAnnealing :: NFData m =>(Modelling m -> IO (Modelling m))-> Double -> Double-> Int -> Int -> AnnealingState m -> IO (AnnealingState m)
 performAnnealing sampler initialTemperature temperatureDrop stages steps =
-    foldl1 composeM $ map (annealingStage sampler steps) temperatures
+    foldl1 composeM $ map (annealingStageWithReport sampler steps) temperatures
   where
     temperatures = take stages $ iterate (*temperatureDrop) initialTemperature
 

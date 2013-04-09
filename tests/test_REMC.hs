@@ -10,12 +10,14 @@ import           Control.Monad(forM_)
 import qualified Data.Vector as V
 import           Data.List(intercalate, nub)
 import           Control.Arrow((&&&))
+import           Numeric(showFFloat)
 
 import           Rosetta.Silent
 import qualified Rosetta.Fragments as F
 
 import           RepeatPolymer
 import           Annealing
+import           REMC
 import           FragReplace
 import           Topo
 import           Score.ScoreSet
@@ -90,7 +92,7 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
           distScore <- time' "Preparing distance restraints" $ prepareDistanceScore (computePositions topo) restraintsInput
           let scoreSet = makeScoreSet "score" [ distScore
                                               , stericScore ]
-          forM_ [0..3] $ \i -> 
+          forM_ [0] $ \i -> 
             case getPolymer topo i of
               Left errMsg   -> do hPutStrLn stderr errMsg
                                   exitFailure
@@ -101,11 +103,20 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
                                   let polySampler' m = do r <- polySampler m
                                                           debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
                                                           return r
-                                  --annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
-                                  finalState <- annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer
-                                  let polymer' = finalPolymer finalState
-                                  assertM $ seq       == topo2sequence (instantiate polymer')
-                                  writeFile ("poly_" ++ show i ++ ".pdb") $ showPolymer polymer'
+                                  --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
+                                  --tests/test_REMC.hs
+                                  let numReplicas      = 30
+                                  let iniModels        = replicate numReplicas $ makePolymerModel polymer -- TODO: use initial models within a polymer?
+                                  let temperatures     = take numReplicas $ iterate (*0.9) 1.0
+                                  let stepsPerExchange = 1
+                                  let numExchanges     = 1
+                                  putStrLn "Temperatures: "
+                                  putStrLn $ intercalate " " $ map (\t -> showFFloat (Just 3) t "") temperatures
+                                  lastReplica <- polymerOfLastReplica `fmap`
+                                                   remcProtocol polySampler scoreSet temperatures stepsPerExchange numExchanges iniModels
+                                  --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer
+                                  assertM $ seq       == topo2sequence (instantiate lastReplica)
+                                  writeFile ("poly_" ++ show i ++ ".pdb") $ showPolymer lastReplica
   where
     getPolymer topo i = extractPolymer first
                                        (first + monomerLength                - 1)
@@ -115,4 +126,4 @@ main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo)
       where
         first             = (monomerLength + linkerLength) * i + 1
 
-finalPolymer= polymer . model . best
+polymerOfLastReplica = polymer . model . best . ann . last . replicas

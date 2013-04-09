@@ -81,7 +81,7 @@ randomReplace fragset topo gen = case replaceFragment pos frag topo of
 
 -- | Replaces a fragment at a given position in the topology.
 replaceFragment :: Int -> F.RFrag -> Tree Torsion -> Maybe (Tree Torsion)
-replaceFragment pos frag topo = debuggingOn $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
+replaceFragment pos frag topo = debuggingOff $ topo `changeTopoAt` (\t -> tResId t == pos) $ applyFragment $ F.res frag
   where
     -- DEBUG:
     debuggingOff = id

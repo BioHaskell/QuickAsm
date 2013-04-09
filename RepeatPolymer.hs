@@ -154,7 +154,7 @@ samplePolymer fragSet poly gen = if pos <= monomerLen poly
 
 -- | Sampling method to be applied to whole PolymerModel.
 samplePolymerModel :: RandomGen t => RFragSet -> PolymerModel -> t -> (PolymerModel, t)
-samplePolymerModel fragSet polyModel gen = debuggingOn $
+samplePolymerModel fragSet polyModel gen = debuggingOff $
                                             (PModel { polymer = poly'
                                                     , tPoly   = topo'
                                                     , cPoly   = computePositions topo'

@@ -97,3 +97,9 @@ Test-suite          test_Polymer
   main-is:          test_Polymer.hs
   type:             exitcode-stdio-1.0
 
+Test-suite          test_REMC
+  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory, random, vector >= 0.9.1
+  Hs-Source-Dirs:   tests
+  main-is:          test_REMC.hs
+  type:             exitcode-stdio-1.0
+
