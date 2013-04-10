@@ -49,6 +49,8 @@ exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
 
 -- | Checks Metropolis criterion, if given parameters, and a random number generator.
 checkExchangeCriterion :: Double -> Double -> Double -> Double -> IO Bool
+checkExchangeCriterion t1 t2 e1 e2 = checkCriterionIO $ exchangeCriterion t1 t2 e1 e2
+{- DEBUG:
 checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCriterion t1 t2 e1 e2
                                         putStrLn $ concat ["Exchange criterion T1=", showFloat t1,
                                                            " T2=", showFloat t2,
@@ -56,6 +58,7 @@ checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCri
                                                            " E2=", showFloat e2,
                                                            " result: ", show result]
                                         return result
+ -}
 
 correctREMCState = uncurry (==) . (length . replicas &&& length . temperatures)
 
@@ -137,7 +140,7 @@ remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSe
     remcStageAndReport sampler steps remcSt = do remcSt' <- remcStage sampler stepsPerExchange remcSt
                                                  hPutStrLn stderr "REMC stage: "
                                                  hPrint stderr remcSt' -- DEBUG
-                                                 hPutStr stderr "Score components for last replica: "
+                                                 hPutStr stderr "Score components for last replica:\n"
                                                  reportModellingScore . current . ann . last. replicas $ remcSt
                                                  return remcSt'
 

@@ -15,7 +15,7 @@ parallel = Control.Concurrent.ParallelIO.parallel
 -- #ifdef __GLASGOW_HASKELL__
 setupParallel = do rtsConcArgs <- filter (L.isPrefixOf "-N") `fmap` getFullArgs
                    when (rtsConcArgs /= []) $ do cap <- GHC.Conc.getNumCapabilities
-                                                 putStrLn $ concat ["Using ", show cap, " capabilities."]
+                                                 putStrLn $ concat ["Using ", show cap, " parallel threads."]
                    when (rtsConcArgs == []) $ do
                      nProc <- GHC.Conc.getNumProcessors
                      let nCap = min 12 nProc

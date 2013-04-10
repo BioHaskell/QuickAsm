@@ -12,15 +12,15 @@ import System.IO(stdout)
 
 import Topo(computePositions, TorsionTopo, CartesianTopo)
 import Score.ScoringFunction
-import Score.DistanceRestraints(makeDistanceScore)
+import Score.DistanceRestraints(prepareDistanceScore)
 import Score.Steric            (stericScore)
 import Model
 
 import qualified Data.ByteString.Char8 as BS
 
 -- | Makes a compound score out of a set of components, and assigns a name to it.
-makeScoreSet :: BS.ByteString -> [ScoringFunction] -> ScoringFunction
-makeScoreSet name subComponents = self
+makeScoreSet :: BS.ByteString -> [(Double, ScoringFunction)] -> ScoringFunction
+makeScoreSet name weightsAndSubComponents = self
   where
     self = ScoringFunction {
              scoreShow  = \arg -> concat `fmap` mapM (`scoreShow` arg) (tail $ components self)
@@ -28,15 +28,19 @@ makeScoreSet name subComponents = self
            , components = self:subComponents
            , scores     = fmap (zip $ map scoreLabel subComponents) . values
            }
-    -- | Valueation of a Model in result ScoreSet.
+    subComponents = map snd weightsAndSubComponents
+    weights       = map fst weightsAndSubComponents
+    -- | Valuation of a Model in result ScoreSet.
     values :: (Model m) => m -> IO [Double]
     values arg = do subValues <- mapM (`score` arg) subComponents
-                    let total = sum subValues
+                    let total = sum $ zipWith (*) weights subValues
                     total `seq` return $! total:subValues
 
+-- TODO: more convenient interface to scoring functions.
 -- | Makes a default set of scoring functions, given a distance restraint set.
-makeAllScores rset = makeScoreSet "score" [ makeDistanceScore rset
-                                          , stericScore            ]
+makeAllScores stericWeight restraintsInput topo = do distScore <- prepareDistanceScore (computePositions topo) restraintsInput
+                                                     return $! makeScoreSet "score" [ (1.0, distScore)
+                                                                                    , (stericWeight, stericScore) ]
 
 -- | Reports details of a scoring function to the standard output.
 reportModelScore = hReportModelScore stdout
