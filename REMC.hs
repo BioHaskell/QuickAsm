@@ -9,12 +9,15 @@ module REMC( REMCState(..)
            ) where
 
 import           System.Random
-import           Control.DeepSeq(NFData(..), deepseq)
+import           Control.DeepSeq(NFData(..), deepseq, force)
 import           Control.Exception(assert)
 import           Data.List(intercalate)
 import           Control.Arrow((&&&))
 import           Control.Monad(forM)
-import           System.IO(hPutStrLn, hPrint, stderr)
+import           System.IO(hPutStrLn, hPutStr, hPrint, stderr)
+
+import           Util.Parallel(parallel, withParallel)
+--import qualified Control.Monad.Parallel as ParallelMonad(mapM)
 
 import qualified Rosetta.Fragments as F
 import           Util.Monad
@@ -129,11 +132,13 @@ remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSe
   do remcState <- initREMC scoreSet temperatures modelSet
      putStr "Expected number of exchanges: "
      print numExchanges
-     numExchanges `timesM` remcStageAndReport sampler stepsPerExchange $ remcState
+     withParallel $ numExchanges `timesM` remcStageAndReport sampler stepsPerExchange $ remcState
   where
     remcStageAndReport sampler steps remcSt = do remcSt' <- remcStage sampler stepsPerExchange remcSt
                                                  hPutStrLn stderr "REMC stage: "
                                                  hPrint stderr remcSt' -- DEBUG
+                                                 hPutStr stderr "Score components for last replica: "
+                                                 reportModellingScore . current . ann . last. replicas $ remcSt
                                                  return remcSt'
 
 -- | Initialize state of REMC protocol.
@@ -147,8 +152,9 @@ initREMC scoreSet temperatures modelSet =
 -- | A single stage of N annealing steps per replica, and a single exchange.
 -- Takes a sampling step as a parameter.
 remcStage :: NFData m => (Modelling m -> IO (Modelling m))-> Int -> REMCState m -> IO (REMCState m)
-remcStage sampler steps remcState = do annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState)
-                                         (\(replica, temperature) -> annealingStage sampler steps temperature $ ann replica)
+remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
+                                       annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState)
+                                         (\(replica, temperature) -> fmap force $ annealingStage sampler steps temperature $ ann replica)
                                        remcState' <- exchanges $! remcState { replicas = zipWith updateReplica (replicas remcState) annStates }
                                        print "Exchange done!"
                                        print remcState'
@@ -156,7 +162,9 @@ remcStage sampler steps remcState = do annStates <- jobRunner (uncurry zip $ rep
   where
     updateReplica replica newAnnState = replica { ann = newAnnState }
     -- for now only sequential evaluation...
-    jobRunner = forM
+    --jobRunner = forM
+    jobRunner :: [a] -> (a -> IO b) -> IO [b]
+    jobRunner list action = parallel $ map action list
     -- later one can use some kind of parallel jobRunner:
     -- 1. Parallel monad
     -- 2. Cloud Haskell

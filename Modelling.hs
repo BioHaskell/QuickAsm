@@ -5,13 +5,16 @@ module Modelling( Modelling(..)
                 , modelling
                 , initModelling
                 , modelScore
+                , showModellingScore
+                , reportModellingScore
                 ) where
 
 import qualified Data.ByteString.Char8 as BS
 
-import Score.ScoringFunction as SF(ScoringFunction, ScoreList, scores, totalScore)
+import Score.ScoringFunction as SF(ScoringFunction(scoreShow), ScoreList, scores, totalScore)
 import Model
 import Control.DeepSeq(NFData(..))
+import Control.Monad(mapM_)
 
 data Modelling m =
   (Model m) => Modelling { model       :: m
@@ -38,6 +41,11 @@ modelling act m = do m' <- act $ model m
                               }
   where
     sf = scoring m
+
+showModellingScore ::  Model m => Modelling m -> IO [BS.ByteString]
+showModellingScore m = scoreShow (scoring m) (model m)
+
+reportModellingScore m = showModellingScore m >>= mapM_ BS.putStrLn
 
 initModelling sf m = (\vals -> Modelling m vals sf) `fmap` scores sf m
 

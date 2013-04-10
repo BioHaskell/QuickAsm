@@ -19,6 +19,7 @@ import Model
 
 import AtomParams
 import Score.ScoringFunction(ScoringFunction(..), simpleScoringFunction)
+import Util.Show(showFloat)
 
 -- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
@@ -34,27 +35,40 @@ atomClashCheck percent oct cart = filter (vdwClash cart) (atomsWithinRange oct r
   where
     cRadius = atomicRadius . atomType . cAtName
     radius = (cRadius cart + maxAtomicRadius) * percent
-    at1 `vdwClash` at2 = cPos at1 `O.dist` cPos at2 < (cRadius at1 + cRadius at2) * percent
-      where
-        pos1 = cPos at1
-        pos2 = cPos at2
+    at1 `vdwClash` at2 = vdwScore percent at1 at2 > 0.0
+    --at1 `vdwClash` at2 = cPos at1 `O.dist` cPos at2 < (cRadius at1 + cRadius at2) * percent
 
+-- | Scores a given atom for cross-clashes with all atoms in an Octree,
+-- with a given percent of van der Waals radius.
 atomClashScore :: Double -> O.Octree Cartesian -> Cartesian -> Double
-atomClashScore percent oct cart = sum $ map (vdwScore cart) (atomsWithinRange oct radius cart)
+atomClashScore percent oct cart = sum $ map (vdwScore percent cart) (atomsWithinRange oct radius cart)
   where
-    cRadius = atomicRadius . atomType . cAtName
     radius = (cRadius cart + maxAtomicRadius) * percent
-    at1 `vdwScore` at2 = if notConnected (at1, at2) && notSame (at1, at2)
-                           then min 0.0 $ (cRadius at1 + cRadius at2) * percent - (cPos at1 `O.dist` cPos at2)
-                           else     0.0
 
+
+-- | Simple extraction of atomic radius for a Cartesian record.
+cRadius ::  Cartesian -> Double
+cRadius = atomicRadius . atomType . cAtName
+
+-- | With a given percent of van der Waals radius, returns a clash score between two atoms.
+vdwScore ::  Double -> Cartesian -> Cartesian -> Double
+vdwScore percent at1 at2 = if notConnected (at1, at2) && notSame (at1, at2)
+                       then max 0.0 $ (cRadius at1 + cRadius at2) * percent - (cPos at1 `O.dist` cPos at2)
+                       else     0.0
+
+-- | Returns all atoms in an Octree that are within a given radius of a given Cartesian atom.
+atomsWithinRange :: O.Octree Cartesian -> Double -> Cartesian -> [Cartesian]
 atomsWithinRange oct radius cart = map snd . O.withinRange oct radius . cPos $ cart
 
-
+-- | Simple check for covalently connected atoms.
+notConnected ::  (Cartesian, Cartesian) -> Bool
 notConnected (at1, at2) = notSame (at1, at2) && not (covalentlyBound at1 at2)
 
+-- | Simple check for the same atoms.
+notSame ::  (Cartesian, Cartesian) -> Bool
 notSame (at1, at2) = residueId at1 /= residueId at2
 
+-- | Total clash score for a given topology and percentage of van der Waals radius.
 selfClashScore :: Double -> CartesianTopo -> Double
 selfClashScore percent carts = sum $ map (atomClashScore percent oct) $ flatten carts
   where
@@ -79,6 +93,7 @@ selfClashCheck' percent carts = filter notConnected $ crossClashCheck' percent c
 -- TODO: make a more clever check for topology? (e.g. return CartesianTopo instead of Cartesian?)
 
 -- | Checks whether two atoms are likely to be covalently bound.
+covalentlyBound ::  Cartesian -> Cartesian -> Bool
 covalentlyBound at1 at2 = cov (cAtName at1) (cAtName at2)
   where
     cov "N" "C" = True
@@ -86,22 +101,35 @@ covalentlyBound at1 at2 = cov (cAtName at1) (cAtName at2)
     cov _   _   = False
 
 -- | Returns residue identifier of a given Cartesian atom.
+residueId ::  Cartesian -> (Int, String)
 residueId cart = (cResId cart, cResName cart)
 
 -- | Default limit for steric clash relative to atoms' van der Waals radius.
+defaultPercent ::  Double
 defaultPercent = 0.5
 
--- | Checks for steric clashes with self, with default parameters.
+-- | Checks for all steric clashes in a given set of Cartesian atoms,
+-- with default parameters.
+selfClashCheck ::  [Cartesian] -> [(Cartesian, Cartesian)]
 selfClashCheck  = selfClashCheck'  defaultPercent
 
 -- | Checks for steric clashes with other molecule, with default parameters.
+crossClashCheck :: [Cartesian] -> [Cartesian] -> [(Cartesian, Cartesian)]
 crossClashCheck = crossClashCheck' defaultPercent
 
+-- | ScoringFunction object returning a clash score.
 stericScore :: ScoringFunction
 stericScore = simpleScoringFunction "steric" fun showFun
   where
     fun ::  (Monad m, Model a) => a -> m Double
     fun     = return . selfClashScore defaultPercent . cartesianTopo
     showFun ::  (Monad m, Model a) => a -> m [BS.ByteString]
-    showFun = return . map (BS.pack . show) . selfClashCheck . flatten . cartesianTopo
+    showFun = return . showEmpty . map (showClash defaultPercent) . selfClashCheck . flatten . cartesianTopo
+      where
+        showEmpty [] = ["No steric clashes."]
+        showEmpty e  = e
+
+-- | Shows a clash scored with a given percent (0.5 by default.)
+showClash ::  Double -> (Cartesian, Cartesian) -> BS.ByteString
+showClash percent (a, b) = BS.pack . shows a . (' ':) . shows b . (' ':) . showFloat $ vdwScore percent a b
 

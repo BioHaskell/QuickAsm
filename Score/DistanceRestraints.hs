@@ -20,6 +20,7 @@ import Model
 import Topo
 import Score.ScoringFunction(ScoringFunction, simpleScoringFunction)
 import Modelling
+import Util.Show(showFloat)
 
 -- | Contains a restraint with a precomputed atom number
 data Restraint = Restraint { source                 :: !R.Restraint
@@ -157,19 +158,22 @@ checkDistanceRestraints' rset carTopo = scores
     rights = finder rightAt byRightAtom
     funcs  = V.fromList $ map rFunc $ byNum rset 
     score  pos1 pos2 = rScore $ V3.vmag $ pos2 - pos1
-    rScore dist (R.RGaussian avg dev est) = (dif*dif)/(-2*dev*dev) -- ignored log of exp part... -> different constant
-      where
-        dif = dist - avg
+    rScore dist (R.RGaussian avg dev est) = (dif*dif)/(2*dev*dev) -- ignored log of exp part... -> different constant
+      where -- NOTE: we ignore lower bounds!
+        dif = min 0 $ dist - avg
     -- NOTE: in ROSETTA there is a separate equation for violation larger than stdev above hibound
     rScore dist (R.RBounded lo hi dev) = dif*dif/dev
       where
-        dif = maximum [lo - dist, dist - hi, 0]
+        --dif = maximum [lo - dist, dist - hi, 0] -- ignoring lower bound again!
+        dif = maximum [dist - hi, 0]
     -- TODO: do with need max penalty?
     scores = V.zipWith3 score lefts rights funcs
 
 -- | Show value of each restraint.
 checkDistanceRestraints :: RestraintSet -> CartesianTopo -> [(Restraint, Double)]
-checkDistanceRestraints rset carTopo = zip (byNum rset) $ V.toList $ checkDistanceRestraints' rset carTopo
+checkDistanceRestraints rset carTopo = filter isPositive $ zip (byNum rset) $ V.toList $ checkDistanceRestraints' rset carTopo
+  where
+    isPositive (_r, v) = v > 0.0
 
 -- | Give a synthetic restraint score.
 scoreDistanceRestraints :: RestraintSet -> CartesianTopo -> Double
@@ -215,7 +219,7 @@ makeDistanceScore rset = simpleScoringFunction "cst" fun showFun
     fun ::  (Monad m, Model a) => a -> m Double
     fun     = return . scoreDistanceRestraints rset . cartesianTopo
     showFun ::  (Monad m, Model a) => a -> m [BS.ByteString]
-    showFun = return . map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") . checkDistanceRestraints rset . cartesianTopo
+    showFun = return . map (\(a, b) -> BS.pack . shows (source a) . (' ':) $ showFloat b) . checkDistanceRestraints rset . cartesianTopo
 
 -- | Read distance restraints from file and return a ScoringFunction.
 prepareDistanceScore :: CartesianTopo -> FilePath -> IO ScoringFunction

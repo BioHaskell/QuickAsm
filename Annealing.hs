@@ -88,7 +88,9 @@ annealingStageWithReport sampler steps temperature annealingState = --time "Anne
        return newState
 
 annealingStage sampler steps temperature annealingState =
-       steps `timesM` samplingStep sampler temperature $ annealingState
+    do result <- steps `timesM` samplingStep sampler temperature $ annealingState
+       result `deepseq` return $! result
+
 
 -- | Performs N stages of M steps of Metropolis MC annealing protocol with
 -- a given, initial temperature, temperature drop, and sampling step function.

@@ -23,7 +23,8 @@ atomType at    = error $ "Unknown atom type for: " ++ show at
 -- | Returns van der Waals radius of an atom of given element.
 -- Taken from Wikipedia, cited Bondi 1964.
 atomicRadius "H" = 1.2 -- or 1.09?
-atomicRadius "C" = 1.7
+--atomicRadius "C" = 1.7
+atomicRadius "C" = 2.0 -- LJ radius consistent with ROSETTA
 atomicRadius "N" = 1.55
 atomicRadius "O" = 1.52
 atomicRadius "P" = 1.8
