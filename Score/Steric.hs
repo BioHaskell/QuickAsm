@@ -19,7 +19,7 @@ import Model
 
 import AtomParams
 import Score.ScoringFunction(ScoringFunction(..), simpleScoringFunction)
-import Util.Show(showFloat)
+import Util.Show(showFloat, showEmpty)
 
 -- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
@@ -124,10 +124,8 @@ stericScore = simpleScoringFunction "steric" fun showFun
     fun ::  (Monad m, Model a) => a -> m Double
     fun     = return . selfClashScore defaultPercent . cartesianTopo
     showFun ::  (Monad m, Model a) => a -> m [BS.ByteString]
-    showFun = return . showEmpty . map (showClash defaultPercent) . selfClashCheck . flatten . cartesianTopo
-      where
-        showEmpty [] = ["No steric clashes."]
-        showEmpty e  = e
+    showFun = return . showEmpty "No steric clashes." .
+                       map (showClash defaultPercent) . selfClashCheck . flatten . cartesianTopo
 
 -- | Shows a clash scored with a given percent (0.5 by default.)
 showClash ::  Double -> (Cartesian, Cartesian) -> BS.ByteString

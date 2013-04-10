@@ -1,4 +1,6 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Util.Show( showFloat
+                , showEmpty
                 , adjust
                 , bAdjust   ) where
 
@@ -18,3 +20,6 @@ adjust i l = iterate (' ':) l !! n
 bAdjust ::  Int -> BS.ByteString -> BS.ByteString
 bAdjust i l = BS.replicate (i - BS.length l) ' ' `BS.append` l
 
+-- | If a list of some strings is empty, it puts in a given message.
+showEmpty msg [] = [msg]
+showEmpty _   e  = e

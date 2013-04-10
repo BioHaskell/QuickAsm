@@ -20,7 +20,7 @@ import Model
 import Topo
 import Score.ScoringFunction(ScoringFunction, simpleScoringFunction)
 import Modelling
-import Util.Show(showFloat)
+import Util.Show(showFloat, showEmpty)
 
 -- | Contains a restraint with a precomputed atom number
 data Restraint = Restraint { source                 :: !R.Restraint
@@ -219,7 +219,9 @@ makeDistanceScore rset = simpleScoringFunction "cst" fun showFun
     fun ::  (Monad m, Model a) => a -> m Double
     fun     = return . scoreDistanceRestraints rset . cartesianTopo
     showFun ::  (Monad m, Model a) => a -> m [BS.ByteString]
-    showFun = return . map (\(a, b) -> BS.pack . shows (source a) . (' ':) $ showFloat b) . checkDistanceRestraints rset . cartesianTopo
+    showFun = return . showEmpty "All distances satisfied." .
+                       map (\(a, b) -> BS.pack . shows (source a) . (' ':) $ showFloat b) .
+                       checkDistanceRestraints rset . cartesianTopo
 
 -- | Read distance restraints from file and return a ScoringFunction.
 prepareDistanceScore :: CartesianTopo -> FilePath -> IO ScoringFunction
