@@ -24,6 +24,7 @@ module Topo( Tree          (..)
            , computeTorsions
            , showCartesian
            , showCartesianTopo
+           , showTorsionTopoAsPDB
 
            -- Backbone inspection
            , backboneDihedrals
@@ -127,6 +128,10 @@ showCartesian (Cartesian { cPos     = Vector3 x y z
 -- | Shows Cartesian topology as PDB `ATOM` coordinate records.
 showCartesianTopo :: CartesianTopo -> String
 showCartesianTopo = intercalate "\n" . map showCartesian . Data.Tree.flatten
+
+-- | Shows Torsion topology as PDB `ATOM` coordinate records (omitting angles.)
+showTorsionTopoAsPDB :: TorsionTopo -> String
+showTorsionTopoAsPDB = showCartesianTopo . computePositions
 
 -- | Prints Cartesian as PDB ATOM record to a given output file.
 printPDBAtom :: Handle -> Cartesian -> IO ()
@@ -360,9 +365,6 @@ backbonePlanars   = tail . map tPlanar   . backbone
 -- | Returns a list of dihedral angles along the topology backbone.
 backboneDihedrals :: TorsionTopo -> [Double]
 backboneDihedrals = tail . map tDihedral . backbone
-
--- TODO: move unit tests to this module
--- TODO: add silent2PDB script
 
 -- * Residue and atom renumbering
 -- | Renumbers residues from 1 within topology with a given "setter" and "getter" for residue id.

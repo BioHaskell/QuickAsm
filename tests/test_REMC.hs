@@ -5,6 +5,7 @@ module Main where
 import           System.IO(hPutStrLn, stderr)
 import           System.Exit(exitFailure)
 import           System.Random(getStdRandom)
+import           System.Mem(performGC)
 import           Control.Exception(assert)
 import           Control.Monad(forM_)
 import qualified Data.Vector as V
@@ -81,6 +82,11 @@ debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (sh
 main = do topo <- time "Read input model" $ (head . map silentModel2TorsionTopo) `fmap` processSilentFile inputSilent
           preFrags <- time "Reading fragment set"  $ F.processFragmentsFile inputFragSet
           fragSet' <- time "Checking fragment set" $ checkFragments topo preFrags
+          -- To advance inputs to eldest generation.
+          performGC
+          performGC
+          performGC
+          performGC
           let seq = topo2sequence topo
           let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
           print $ monomerLength * monomerCount + linkerLength * (monomerCount - 1)

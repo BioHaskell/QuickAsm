@@ -82,7 +82,7 @@ initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
 -- | A single temperature stage of annealing protocol with a given number
 -- of sampler trials.
 annealingStageWithReport :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
-annealingStageWithReport sampler steps temperature annealingState = time "Annealing stage" $
+annealingStageWithReport sampler steps temperature annealingState = --time "Annealing stage" $
     do newState <- annealingStage sampler steps temperature annealingState
        print newState
        return newState

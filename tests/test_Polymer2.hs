@@ -11,7 +11,6 @@ import           Control.Monad(forM_)
 import qualified Data.Vector as V
 import           Data.List(intercalate, nub)
 import           Control.Arrow((&&&))
-import           Control.DeepSeq(deepseq, NFData(..))
 
 import           Rosetta.Silent
 import qualified Rosetta.Fragments as F
@@ -77,8 +76,6 @@ debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (sh
     monoSeq2   = topo2sequence $ monomer polymer
     linkerSeq2 = topo2sequence $ linker  polymer
 
-instance NFData ScoringFunction where
-
 readInputs inputSilent inputFragSet restraintsInput = do
     topo <- time "Read input model" $ (head . map silentModel2TorsionTopo) `fmap` processSilentFile inputSilent
     preFrags <- time "Reading fragment set"  $ F.processFragmentsFile inputFragSet
@@ -86,44 +83,42 @@ readInputs inputSilent inputFragSet restraintsInput = do
     distScore <- time' "Preparing distance restraints" $ prepareDistanceScore (computePositions topo) restraintsInput
     let scoreSet = makeScoreSet "score" [ distScore
                                         , stericScore ]
-    let seq = topo2sequence topo
-    let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
-    print $ monomerLength * monomerCount + linkerLength * (monomerCount - 1)
-    print $ length seq
-    putStrLn seq
-    putStr "Monomer: "
-    putStrLn monoSeq
-    putStr "Linker : "
-    putStrLn linkerSeq
-    case getPolymer topo 0 of
-      Left errMsg   -> do hPutStrLn stderr errMsg
-                          exitFailure
-      Right poly    -> let result = (poly, fragSet, scoreSet, seq, monoSeq, linkerSeq)
-                           fragSet = poly `delimitFragSet` fragSet'
-                       in result `deepseq`
-                            return result
+    return (topo, fragSet', scoreSet)
 
-getPolymer topo i = extractPolymer first
-                                   (first + monomerLength                - 1)
-                                   (first + monomerLength + linkerLength - 1)
-                                   5
-                                   topo
-  where
-    first             = (monomerLength + linkerLength) * i + 1
-
-main = do (poly, fragSet, scoreSet, topoSeq, monoSeq, linkerSeq) <- time "Read all inputs, and constructed polymer" $
-                                                                      readInputs inputSilent inputFragSet restraintsInput
+main = do (topo, fragSet', scoreSet) <- readInputs inputSilent inputFragSet restraintsInput
+          let seq = topo2sequence topo
+          let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
           performGC
-          debugPolymer poly monoSeq linkerSeq
-          debugFragSet fragSet
-          let polySampler = modelling $ \m -> getStdRandom $ samplePolymerModel fragSet m
-          let polySampler' m = do r <- polySampler m
-                                  debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
-                                  return r
-          --annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
-          finalState <- annealingProtocol polySampler scoreSet 1.0 0.5 3 3 $ makePolymerModel poly
-          let polymer' = finalPolymer finalState
-          assertM $ topoSeq       == topo2sequence (instantiate polymer')
-          writeFile ("poly" ++ ".pdb") $ showPolymer polymer'
+          print $ monomerLength * monomerCount + linkerLength * (monomerCount - 1)
+          print $ length seq
+          putStrLn seq
+          putStr "Monomer: "
+          putStrLn monoSeq
+          putStr "Linker : "
+          putStrLn linkerSeq
+          forM_ [0..3] $ \i -> 
+            case getPolymer topo i of
+              Left errMsg   -> do hPutStrLn stderr errMsg
+                                  exitFailure
+              Right polymer -> do debugPolymer polymer monoSeq linkerSeq
+                                  let fragSet = polymer `delimitFragSet` fragSet'
+                                  debugFragSet fragSet
+                                  let polySampler = modelling $ \m -> getStdRandom $ samplePolymerModel fragSet m
+                                  let polySampler' m = do r <- polySampler m
+                                                          debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
+                                                          return r
+                                  --annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
+                                  finalState <- annealingProtocol polySampler scoreSet 1.0 0.5 3 3 $ makePolymerModel polymer
+                                  let polymer' = finalPolymer finalState
+                                  assertM $ seq       == topo2sequence (instantiate polymer')
+                                  writeFile ("poly_" ++ show i ++ ".pdb") $ showPolymer polymer'
+  where
+    getPolymer topo i = extractPolymer first
+                                       (first + monomerLength                - 1)
+                                       (first + monomerLength + linkerLength - 1)
+                                       5
+                                       topo
+      where
+        first             = (monomerLength + linkerLength) * i + 1
 
 finalPolymer= polymer . model . best
