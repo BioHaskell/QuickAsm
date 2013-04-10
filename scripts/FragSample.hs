@@ -18,9 +18,7 @@ import qualified Rosetta.Silent        as S
 import FragReplace
 import Topo
 import Util.Timing
-import Score.DistanceRestraints(prepareDistanceScore)
-import Score.Steric(stericScore)
-import Score.ScoreSet(makeScoreSet)
+import Score.ScoreSet(makeAllScores)
 import Score.ScoringFunction(score, ScoringFunction)
 import Modelling
 import Model
@@ -42,9 +40,7 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOut
        hPutStrLn stderr $ showTopoResidueRange mdl
        fragset <- checkFragments mdl inFragSet
        let cartopo = computePositions mdl
-       distScore <- time' "Preparing distance restraints" $ prepareDistanceScore cartopo restraintsInput
-       let scoreSet = makeScoreSet "score" [ distScore
-                                           , stericScore ]
+       scoreSet <- time' "Preparing scoring function" $ makeAllScores 10 restraintsInput mdl
        iniScore <- time "Computing initial score" $ score scoreSet $ initTorsionModel mdl
        annState <- time "Annealing protocol" $ annealingProtocol (torsionFragSampler fragset) scoreSet (iniScore*0.2) 0.9 30 100 $ initTorsionModel mdl
        let bestMdl    = model $ best    annState

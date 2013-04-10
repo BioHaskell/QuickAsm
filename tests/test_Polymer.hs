@@ -83,9 +83,7 @@ readInputs inputSilent inputFragSet restraintsInput = do
     topo <- time "Read input model" $ (head . map silentModel2TorsionTopo) `fmap` processSilentFile inputSilent
     preFrags <- time "Reading fragment set"  $ F.processFragmentsFile inputFragSet
     fragSet' <- time "Checking fragment set" $ checkFragments topo preFrags
-    distScore <- time' "Preparing distance restraints" $ prepareDistanceScore (computePositions topo) restraintsInput
-    let scoreSet = makeScoreSet "score" [ distScore
-                                        , stericScore ]
+    scoreSet <- time' "Preparing scoring function" $ makeAllScores 10 restraintsInput topo
     let seq = topo2sequence topo
     let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
     print $ monomerLength * monomerCount + linkerLength * (monomerCount - 1)
