@@ -56,7 +56,7 @@ import Data.Traversable(mapM)
 import Data.List(intercalate, group)
 import Control.Monad(when)
 
-import Control.Monad.State(State, get, modify, evalState, void)
+import Control.Monad.State(State, get, put, modify, evalState, void)
 import qualified Data.ByteString.Char8 as BS
 import Data.Vector.V3
 import Data.Vector.Class
@@ -372,9 +372,11 @@ renumberResiduesWith :: (a -> Int -> a) -> (a -> Int) -> Int -> Tree a -> Tree a
 renumberResiduesWith setter getter initial t = evalState (mapM renum t) (initial, getter $ rootLabel t)
   where
     renum a = do (i, prevNum) <- get
-                 let newNum = getter a
-                 when (newNum /= prevNum) $ modify (\(i, prevNum)-> (i+1, newNum))
-                 return $ a `setter` i
+                 when (newNum /= prevNum) $ put (i+1, newNum)
+                 (j, _) <- get
+                 return $ a `setter` j
+      where
+        newNum = getter a
 
 -- | Renumbers residues from a given number within Cartesian topology.
 renumberResiduesC :: Int -> CartesianTopo -> CartesianTopo
