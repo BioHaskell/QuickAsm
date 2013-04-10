@@ -13,3 +13,7 @@ struct.tab
 scwrl*.pdb
 scwrl*.shiftx
 dist
+*.hp
+*.prof
+test_REMC.svg
+test_Polymer.svg
