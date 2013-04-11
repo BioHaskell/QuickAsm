@@ -150,8 +150,8 @@ remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSe
      print numExchanges
      withParallel $ numExchanges `timesM` remcStageAndReport sampler stepsPerExchange $ remcState
   where
-    remcStageAndReport sampler steps remcSt = do remcSt' <- remcStage sampler stepsPerExchange remcSt
-                                                 hPutStrLn stderr "REMC stage: "
+    remcStageAndReport sampler steps remcSt = do remcSt' <- time "REMC stage" $ remcStage sampler stepsPerExchange remcSt
+                                                 --hPutStrLn stderr "REMC stage: "
                                                  hPrint stderr remcSt' -- DEBUG
                                                  hPutStr stderr "Score components for last replica:\n"
                                                  reportModellingScore . current . ann . last. replicas $ remcSt
@@ -170,7 +170,7 @@ initREMC scoreSet temperatures modelSet =
 remcStage :: NFData m => (Modelling m -> IO (Modelling m))-> Int -> REMCState m -> IO (REMCState m)
 remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
                                        annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState)
-                                         (\(replica, temperature) -> fmap force $ annealingStage sampler steps temperature $ ann replica)
+                                         (\(replica, temperature) -> annealingStage sampler steps temperature $ ann replica)
                                        remcState' <- exchanges $! remcState { replicas = zipWith updateReplica (replicas remcState) annStates }
                                        print "Exchange done!"
                                        print remcState'
@@ -198,7 +198,7 @@ replicaNames ::  REMCState m -> [BS.ByteString]
 replicaNames remc = zipWith nameReplica (map replId $ replicas remc) (temperatures remc)
   where
     nameReplica ::  Int -> Double -> BS.ByteString
-    nameReplica rNum rTemp = BS.pack $ "R_" ++ show rNum ++ "_T" ++ replace '.' '_' (showFloat rTemp)
+    nameReplica rNum rTemp = BS.pack $ "R_" ++ show rNum ++ "_T" ++ (filter (/=' ') . replace '.' '_' . showFloat) rTemp
 
 -- | Converts a single Replica into an unnamed SilentModel.
 replica2SilentModel :: Model m => Replica m -> S.SilentModel

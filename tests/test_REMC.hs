@@ -12,7 +12,7 @@ import qualified Data.Vector as V
 import           Data.List(intercalate, nub)
 import           Control.Arrow((&&&))
 import           Numeric(showFFloat)
-import           Control.DeepSeq(deepseq, NFData(..))
+import           Control.DeepSeq(deepseq, NFData(..), force)
 
 import           Rosetta.Silent
 import qualified Rosetta.Fragments as F
@@ -113,13 +113,14 @@ getPolymer topo i = extractPolymer first
     first             = (monomerLength + linkerLength) * i + 1
 
 
-main = do (poly, fragSet, scoreSet, topoSeq, monoSeq, linkerSeq) <- time "Read all inputs, and constructed polymer" $
-                                                                      readInputs inputSilent inputFragSet restraintsInput
+main = do (poly, fragSet, scoreSet,
+           topoSeq, monoSeq, linkerSeq) <- time "Read all inputs, and constructed polymer" $
+                                             readInputs inputSilent inputFragSet restraintsInput
           performGC
           debugPolymer poly monoSeq linkerSeq
           debugFragSet fragSet
 
-          let polySampler = modelling $ \m -> getStdRandom $ samplePolymerModel fragSet m
+          let polySampler = force . modelling $ \m -> getStdRandom $ samplePolymerModel fragSet m
           let polySampler' m = do r <- polySampler m
                                   r `deepseq` debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
                                   return r
@@ -127,13 +128,14 @@ main = do (poly, fragSet, scoreSet, topoSeq, monoSeq, linkerSeq) <- time "Read a
           --tests/test_REMC.hs
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makePolymerModel poly -- TODO: use initial models within a polymer?
-          let temperatures     = take numReplicas $ iterate (*0.9) 1.0
           let stepsPerExchange = 10
-          let numExchanges     = 100
+          let numExchanges     = 1000
+          temperatures <- prepareTemperatureSet numReplicas 100.0 0.1
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
           remcFinalState <- remcProtocol polySampler scoreSet temperatures stepsPerExchange numExchanges iniModels
           --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer
+          writeREMC2Silent "remc.out" remcFinalState 
           let models = map (polymer . model . best . ann &&& replId) . replicas $ remcFinalState
           forM_ (zip models [1..]) $ \((m, replId), i) -> do
             assertM $ topoSeq == topo2sequence (instantiate m)

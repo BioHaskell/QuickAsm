@@ -45,6 +45,7 @@ import Util.Timing
 import Util.Assert(errorWithStack) -- DEBUG
 import Debug.Trace(traceShow)      -- DEBUG
 
+-- * Random drawing of fragments
 -- | Draw a random element of a vector.
 randomV v gen = (e, gen')
   where
@@ -87,6 +88,19 @@ replaceFragment pos frag topo = debuggingOff $ topo `changeTopoAt` (\t -> tResId
     debuggingOff = id
     debuggingOn  = traceShow ("replaceFragment", pos, frag, availablePositions topo) 
     availablePositions = map (tResId &&& tAtName) . backbone
+
+-- | Generates a topology from random fragments.
+randomTopo inputSeq fragSet = constructBackbone               $
+                              zipWith joinSeqTorsion inputSeq $
+                              fragments2angles                $
+                              randomFragments fragSet
+  where
+    -- | Adds residue codes to a list of torsion angles.
+    joinSeqTorsion resname (phi, psi, omega) = (resname, phi, psi, omega)
+    -- | Random fragments covering whole sequence. Some of them may be cut so they are non-overlapping.
+    randomFragments = undefined
+    -- | Takes a list of non-overlapping fragments, and generates a list of torsion angles.
+    fragments2angles = undefined
 
 -- | Changes a topology at a first backbone position given by a predicate (if such a position is found.)
 changeTopoAt :: Tree a -> (a -> Bool) -> (Tree a -> Tree a) -> Maybe (Tree a)
