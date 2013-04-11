@@ -11,7 +11,7 @@ import           Control.Monad(forM_)
 import qualified Data.Vector as V
 import           Data.List(intercalate, nub)
 import           Control.Arrow((&&&))
-import           Control.DeepSeq(deepseq, NFData(..))
+import           Control.DeepSeq(deepseq, force, NFData(..))
 
 import           Rosetta.Silent
 import qualified Rosetta.Fragments as F
@@ -109,18 +109,21 @@ getPolymer topo i = extractPolymer first
   where
     first             = (monomerLength + linkerLength) * i + 1
 
-main = do (poly, fragSet, scoreSet, topoSeq, monoSeq, linkerSeq) <- time "Read all inputs, and constructed polymer" $
-                                                                      readInputs inputSilent inputFragSet restraintsInput
+main = do (poly,    fragSet, scoreSet,
+           topoSeq, monoSeq, linkerSeq) <- time "Read all inputs, and constructed polymer" $
+                                             readInputs inputSilent inputFragSet restraintsInput
           performGC
           debugPolymer poly monoSeq linkerSeq
           debugFragSet fragSet
           let polySampler = modelling $ \m -> getStdRandom $ samplePolymerModel fragSet m
-          let polySampler' m = do r <- polySampler m
-                                  debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
+          let polySampler' m = do r <- time "Sampling step" $ polySampler m
+                                  --debugPolymer (RepeatPolymer.polymer $ model r) monoSeq linkerSeq
+                                  --time "Forcing and GC" $ force r `deepseq` performGC
                                   return r
           --annealingProtocol polySampler scoreSet 1.0 0.8 30 100 $ makePolymerModel polymer
-          finalState <- annealingProtocol polySampler scoreSet 1.0 0.5 3 3 $ makePolymerModel poly
-          let polymer' = finalPolymer finalState
+          finalState <- time "Annealing" $ annealingProtocol polySampler scoreSet 100.0 0.5 3 3 $ makePolymerModel poly
+          let polymer' = force $ finalPolymer finalState
+          polymer' `deepseq` performGC
           assertM $ topoSeq       == topo2sequence (instantiate polymer')
           writeFile ("poly" ++ ".pdb") $ showPolymer polymer'
 
