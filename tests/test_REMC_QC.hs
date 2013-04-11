@@ -6,6 +6,7 @@ import System.Random(randomRIO)
 
 import Test.QuickCheck.All
 import Test.QuickCheck.Monadic
+--import Test.QuickCheck.Modifiers
 import Test.QuickCheck
 
 import Score.ScoringFunction
@@ -33,6 +34,12 @@ prop_checkExchange_certain_drop (Positive t1) (Positive tDelta) (Positive eDelta
   where
     e1 = e2 + eDelta
     t2 = t1 + tDelta -- guarantees t1 < t2
+
+prop_temperature_step_range (Positive numReplicas) (Positive minT) (Positive deltaT) =
+    (step > 0.0) && (step <= 1.0)
+  where
+    maxT = minT + deltaT
+    step = temperatureStep numReplicas maxT minT
 
 main = $quickCheckAll
 

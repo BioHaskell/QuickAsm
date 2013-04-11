@@ -2,7 +2,8 @@
 module Util.Show( showFloat
                 , showEmpty
                 , adjust
-                , bAdjust   ) where
+                , bAdjust
+                , replace   ) where
 
 import qualified Data.ByteString.Char8 as BS
 import           Numeric(showFFloat)
@@ -23,3 +24,5 @@ bAdjust i l = BS.replicate (i - BS.length l) ' ' `BS.append` l
 -- | If a list of some strings is empty, it puts in a given message.
 showEmpty msg [] = [msg]
 showEmpty _   e  = e
+
+replace a b = map (\c -> if a == c then b else c)

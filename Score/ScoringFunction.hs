@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, Rank2Types #-}
 -- | Implementation of polymorphic lists of scoring functions.
 module Score.ScoringFunction( ScoringFunction (..)
-                            , ScoreList
+                            , ScoreList       (..)
                             , showScores
                             , score
                             , simpleScoringFunction

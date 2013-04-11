@@ -5,7 +5,11 @@ module REMC( REMCState(..)
            , exchangeCriterion
            , checkExchangeCriterion
            , exchanges
+           , temperatureStep
+           , prepareTemperatureSet
            , remcProtocol
+           , replica2SilentModel
+           , writeREMC2Silent
            ) where
 
 import           System.Random
@@ -13,17 +17,19 @@ import           Control.DeepSeq(NFData(..), deepseq, force)
 import           Control.Exception(assert)
 import           Data.List(intercalate)
 import           Control.Arrow((&&&))
-import           Control.Monad(forM)
+import           Control.Monad(forM, when)
 import           System.IO(hPutStrLn, hPutStr, hPrint, stderr)
+import qualified Data.ByteString.Char8 as BS
 
 import           Util.Parallel(parallel, withParallel)
 --import qualified Control.Monad.Parallel as ParallelMonad(mapM)
 
 import qualified Rosetta.Fragments as F
+import qualified Rosetta.Silent    as S
 import           Util.Monad
 import           Util.Timing
 import           Util.Assert(assertM)
-import           Util.Show(adjust, showFloat)
+import           Util.Show(adjust, showFloat, replace)
 import           Score.ScoringFunction
 import           Score.ScoreSet
 import           Topo
@@ -39,11 +45,6 @@ import           Annealing
 -- Note that first argument always corresponds to lower temperature,
 -- and second to higher temperature.
 exchangeCriterion ::  Double -> Double -> Double -> Double -> Double
-{-exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
-                                  if e2 < e1
-                                    then 1.0
-                                    else 0.0
- -}
 exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
                                    min 1 $ exp $ (e1 - e2) * (1/t1 - 1/t2)
 
@@ -82,6 +83,18 @@ exchanges remcSt = do assertM $ correctREMCState remcSt
                                           else do rbs <- exchange (ra:rs) (tb:ts)
                                                   return $! rb:rbs
     exchange [ra]       [ta]       = return [ra]
+
+-- * Computing temperature set for a given range of temperatures and number of replicas.
+temperatureStep ::  Int -> Double -> Double -> Double
+temperatureStep numReplicas maxT minT = exp $ (log minT - log maxT)/fromIntegral numReplicas
+
+-- TODO: should have some logging monad for general error reporting?
+prepareTemperatureSet numReplicas maxT minT = do when (step < 0.5) $
+                                                   hPutStrLn stderr $ "Temperature step is likely too steep: " ++ shows step "."
+                                                 return tempSet
+  where
+    step = temperatureStep numReplicas maxT minT
+    tempSet = take numReplicas $ iterate (*step) maxT
 
 -- * Annealing state parametrized by Modelling environment.
 -- | Holds current and best models, number of successes, stages, and steps.
@@ -171,4 +184,30 @@ remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
     -- later one can use some kind of parallel jobRunner:
     -- 1. Parallel monad
     -- 2. Cloud Haskell
+
+-- * Saving output of REMC to file in ROSETTA Silent format.
+-- | Writes a REMC state as a silent file.
+writeREMC2Silent ::  Model m => FilePath -> REMCState m -> IO ()
+writeREMC2Silent fname remc = S.writeSilentFile fname $ zipWith assignName mdls $ replicaNames remc
+  where
+    assignName mdl description = mdl { S.name = description }
+    mdls = map replica2SilentModel . replicas $ remc
+
+-- | Returns descriptive names for all replicas within REMCState.
+replicaNames ::  REMCState m -> [BS.ByteString]
+replicaNames remc = zipWith nameReplica (map replId $ replicas remc) (temperatures remc)
+  where
+    nameReplica ::  Int -> Double -> BS.ByteString
+    nameReplica rNum rTemp = BS.pack $ "R_" ++ show rNum ++ "_T" ++ replace '.' '_' (showFloat rTemp)
+
+-- | Converts a single Replica into an unnamed SilentModel.
+replica2SilentModel :: Model m => Replica m -> S.SilentModel
+replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
+  where
+    assignScores :: S.SilentModel -> ScoreList -> S.SilentModel
+    assignScores m s = m { S.scores = s }
+    mscore ::  Replica m -> ScoreList
+    mscore = modelScores . current . ann
+    conversion :: Model m => Replica m -> S.SilentModel
+    conversion = torsionTopo2SilentModel . torsionTopo . model . current . ann 
 
