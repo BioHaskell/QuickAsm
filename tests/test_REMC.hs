@@ -128,8 +128,8 @@ main = do (poly, fragSet, scoreSet,
           --tests/test_REMC.hs
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makePolymerModel poly -- TODO: use initial models within a polymer?
-          let stepsPerExchange = 10
-          let numExchanges     = 1000
+          let stepsPerExchange = 1
+          let numExchanges     = 10 --50000
           temperatures <- prepareTemperatureSet numReplicas 100.0 0.1
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures

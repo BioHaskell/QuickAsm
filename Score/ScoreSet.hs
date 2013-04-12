@@ -26,7 +26,7 @@ makeScoreSet name weightsAndSubComponents = self
              scoreShow  = \arg -> concat `fmap` mapM (`scoreShow` arg) (tail $ components self)
            , scoreLabel = name
            , components = self:subComponents
-           , scores     = fmap (zip $ map scoreLabel subComponents) . values
+           , scores     = fmap (zip $ name:map scoreLabel subComponents) . values
            }
     subComponents = map snd weightsAndSubComponents
     weights       = map fst weightsAndSubComponents

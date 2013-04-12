@@ -153,8 +153,8 @@ remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSe
     remcStageAndReport sampler steps remcSt = do remcSt' <- time "REMC stage" $ remcStage sampler stepsPerExchange remcSt
                                                  --hPutStrLn stderr "REMC stage: "
                                                  hPrint stderr remcSt' -- DEBUG
-                                                 hPutStr stderr "Score components for last replica:\n"
-                                                 reportModellingScore . current . ann . last. replicas $ remcSt
+                                                 --hPutStr stderr "Score components for last replica:\n"
+                                                 --reportModellingScore . current . ann . last. replicas $ remcSt
                                                  return remcSt'
 
 -- | Initialize state of REMC protocol.
