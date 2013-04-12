@@ -135,10 +135,8 @@ main = do (poly, fragSet, scoreSet,
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
           remcFinalState <- remcProtocol polySampler scoreSet temperatures stepsPerExchange numExchanges iniModels
           --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer
-          writeREMC2Silent "remc.out" remcFinalState 
-          let models = map (polymer . model . best . ann &&& replId) . replicas $ remcFinalState
-          forM_ (zip models [1..]) $ \((m, replId), i) -> do
-            assertM $ topoSeq == topo2sequence (instantiate m)
-            writeFile ("poly" ++ show i ++ "_" ++ show replId ++ ".pdb") $ showPolymer m
+          writeREMC2Silent "remc.out" remcFinalState
+          writeREMC2PDB    "remc.pdb" remcFinalState
 
 polymerOfLastReplica = polymer . model . best . ann . last . replicas
+

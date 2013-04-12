@@ -1,14 +1,21 @@
 {-# LANGUAGE FlexibleContexts, UndecidableInstances, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | Annealing protocol abstracting from Model representation.
 module REMC( REMCState(..)
            , Replica  (..)
+           -- Exchange steps
            , exchangeCriterion
            , checkExchangeCriterion
            , exchanges
+           -- Computing protocol parameters
            , temperatureStep
            , prepareTemperatureSet
+           -- Running Replica Exchange
            , remcProtocol
+           -- Writing REMC state
+           , replica2PDB
            , replica2SilentModel
+           , writeREMC2PDB
            , writeREMC2Silent
            ) where
 
@@ -26,6 +33,7 @@ import           Util.Parallel(parallel, withParallel)
 
 import qualified Rosetta.Fragments as F
 import qualified Rosetta.Silent    as S
+import           Rosetta.Util(bshow)
 import           Util.Monad
 import           Util.Timing
 import           Util.Assert(assertM)
@@ -37,6 +45,52 @@ import           Model
 import           Modelling
 import           FragReplace
 import           Annealing
+
+-- * Annealing state parametrized by Modelling environment.
+-- | Holds current and best models, number of successes, stages, and steps.
+data Replica   m = Replica { ann    :: AnnealingState m
+                           , replId :: !Int
+                           }
+
+data REMCState m = REMCState { replicas     :: [Replica m]
+                             , temperatures :: [Double]
+                             }
+
+-- * Showing replicas and REMC state
+instance Show (Replica m) where
+  show replica = concat [ "Replica ",  show $ replId replica
+                        , " h", tail $ show $ ann    replica ]
+
+instance Show (REMCState m) where
+  show = ("\n  " `intercalate`   ) .
+         ("REMC with replicas: ":) .
+         map showReplicaState      .
+         uncurry zip               .
+         (replicas &&& temperatures)
+
+-- | Extracts current energy of a replica.
+replicaScore ::  Replica m -> Double
+replicaScore = modelScore . current . ann 
+
+-- | Extracts Model object from a Replica.
+replica2Model ::  Replica c -> c
+replica2Model = model . current . ann
+
+-- | Shows replica id, energy and current temperature together.
+showReplicaState :: (Replica m, Double) -> String
+showReplicaState (repl, temp) = concat [      adjust  2 $ show      $ replId       repl,
+                                         ":", adjust 12 $ showFloat $ replicaScore repl, -- replica's current score
+                                         "@", adjust  5 $ showFloat   temp               -- replica's current temperature
+                                       ]
+
+instance (NFData (AnnealingState m)) => NFData (Replica m) where
+  rnf = rnf . ann
+
+instance (NFData (Replica m)) => NFData (REMCState m) where
+  rnf = uncurry seq . (rnf . replicas &&& rnf . temperatures)
+
+-- | Checks integrity of REMCState.
+correctREMCState = uncurry (==) . (length . replicas &&& length . temperatures)
 
 -- * Exchange
 -- | Replica exchange probability
@@ -60,10 +114,6 @@ checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCri
                                                            " result: ", show result]
                                         return result
  -}
-
-correctREMCState = uncurry (==) . (length . replicas &&& length . temperatures)
-
-multiExchanges n remcSt = n `timesM` remcSt
 
 -- | Perform a single iteration of replica exchange attempts between neighbouring replicas.
 -- Does it in a such way, that if a lowest score appears at highest temperature,
@@ -96,45 +146,7 @@ prepareTemperatureSet numReplicas maxT minT = do when (step < 0.5) $
     step = temperatureStep numReplicas maxT minT
     tempSet = take numReplicas $ iterate (*step) maxT
 
--- * Annealing state parametrized by Modelling environment.
--- | Holds current and best models, number of successes, stages, and steps.
-data Replica   m = Replica { ann    :: AnnealingState m
-                           , replId :: !Int
-                           }
-
-data REMCState m = REMCState { replicas     :: [Replica m]
-                             , temperatures :: [Double]
-                             }
-
--- * Showing replicas and REMC state
-instance Show (Replica m) where
-  show replica = concat [ "Replica ",  show $ replId replica
-                        , " h", tail $ show $ ann    replica ]
-
-instance Show (REMCState m) where
-  show = ("\n  " `intercalate`   ) .
-         ("REMC with replicas: ":) .
-         map showReplicaState      .
-         uncurry zip               .
-         (replicas &&& temperatures)
-
--- | Extracts current energy of a replica.
-replicaScore ::  Replica m -> Double
-replicaScore = modelScore . current . ann 
-
--- | Shows replica id, energy and current temperature together.
-showReplicaState :: (Replica m, Double) -> String
-showReplicaState (repl, temp) = concat [      adjust  2 $ show      $ replId       repl,
-                                         ":", adjust 12 $ showFloat $ replicaScore repl, -- replica's current score
-                                         "@", adjust  5 $ showFloat   temp               -- replica's current temperature
-                                       ]
-
-instance (NFData (AnnealingState m)) => NFData (Replica m) where
-  rnf = rnf . ann
-
-instance (NFData (Replica m)) => NFData (REMCState m) where
-  rnf = uncurry seq . (rnf . replicas &&& rnf . temperatures)
-
+-- * Running Replica Exchange
 -- TODO: parallel REMC stage (using CloudHaskell), and reasonable switching option.
 -- TODO: check sampler compatibility with Annealing module.
 
@@ -185,7 +197,7 @@ remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
     -- 1. Parallel monad
     -- 2. Cloud Haskell
 
--- * Saving output of REMC to file in ROSETTA Silent format.
+-- * Saving structures from REMCState to file.
 -- | Writes a REMC state as a silent file.
 writeREMC2Silent ::  Model m => FilePath -> REMCState m -> IO ()
 writeREMC2Silent fname remc = S.writeSilentFile fname $ zipWith assignName mdls $ replicaNames remc
@@ -193,7 +205,7 @@ writeREMC2Silent fname remc = S.writeSilentFile fname $ zipWith assignName mdls 
     assignName mdl description = mdl { S.name = description }
     mdls = map replica2SilentModel . replicas $ remc
 
--- | Returns descriptive names for all replicas within REMCState.
+-- | Returns descriptive decoy names for all replicas within REMCState.
 replicaNames ::  REMCState m -> [BS.ByteString]
 replicaNames remc = zipWith nameReplica (map replId $ replicas remc) (temperatures remc)
   where
@@ -209,5 +221,31 @@ replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
     mscore ::  Replica m -> ScoreList
     mscore = modelScores . current . ann
     conversion :: Model m => Replica m -> S.SilentModel
-    conversion = torsionTopo2SilentModel . torsionTopo . model . current . ann 
+    conversion = torsionTopo2SilentModel . torsionTopo . replica2Model
+
+-- | Saving output of REMC to a single PDB file with multiple models.
+--writeREMC2PDB :: Model m => FilePath -> REMCState m -> IO ()
+writeREMC2PDB ::  FilePath -> REMCState S.SilentModel -> IO ()
+writeREMC2PDB fname remc = BS.writeFile fname $ BS.intercalate "\n" $
+                             zipWith undefined (temperatures remc) (replicas remc)
+
+-- | Converts a temperature and replice to PDB format string.
+replica2PDB ::  Model m => Double -> Replica m -> BS.ByteString
+replica2PDB temp repl = BS.concat [ "REMARK "
+                                  , scoreHeader
+                                  , "\nREMARK "
+                                  , showScores smdl
+                                  , "\nREMARK Final temperature: "
+                                  , bshow temp
+                                  , "\nMODEL "
+                                  , bshow $ replId repl
+                                  , "\n"
+                                  , BS.pack              $
+                                    showTorsionTopoAsPDB $
+                                    torsionTopo          $
+                                    replica2Model repl   ]
+  where
+    scores = modelScores . current . ann $ repl
+    smdl   = replica2SilentModel repl
+    (scoreHeader, showScores) = S.makeScoreShower [smdl]
 
