@@ -225,9 +225,9 @@ replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
 
 -- | Saving output of REMC to a single PDB file with multiple models.
 --writeREMC2PDB :: Model m => FilePath -> REMCState m -> IO ()
-writeREMC2PDB ::  FilePath -> REMCState S.SilentModel -> IO ()
+writeREMC2PDB ::  Model m => FilePath -> REMCState m -> IO ()
 writeREMC2PDB fname remc = BS.writeFile fname $ BS.intercalate "\n" $
-                             zipWith undefined (temperatures remc) (replicas remc)
+                             zipWith replica2PDB (temperatures remc) (replicas remc)
 
 -- | Converts a temperature and replice to PDB format string.
 replica2PDB ::  Model m => Double -> Replica m -> BS.ByteString
@@ -243,7 +243,8 @@ replica2PDB temp repl = BS.concat [ "REMARK "
                                   , BS.pack              $
                                     showTorsionTopoAsPDB $
                                     torsionTopo          $
-                                    replica2Model repl   ]
+                                    replica2Model repl
+                                  , "\nENDMDL"]
   where
     scores = modelScores . current . ann $ repl
     smdl   = replica2SilentModel repl

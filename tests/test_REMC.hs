@@ -86,7 +86,7 @@ readInputs inputSilent inputFragSet restraintsInput = do
     preFrags <- time "Reading fragment set"  $ F.processFragmentsFile inputFragSet
     fragSet' <- time "Checking fragment set" $ checkFragments topo preFrags
     distScore <- time' "Preparing distance restraints" $ prepareDistanceScore (computePositions topo) restraintsInput
-    scoreSet <- time' "Preparing distance restraints" $ makeAllScores 10.0 restraintsInput topo 
+    scoreSet <- time' "Preparing distance restraints" $ makeAllScores 1 10 restraintsInput topo 
     let seq = topo2sequence topo
     let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
     print $ monomerLength * monomerCount + linkerLength * (monomerCount - 1)
@@ -129,8 +129,8 @@ main = do (poly, fragSet, scoreSet,
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makePolymerModel poly -- TODO: use initial models within a polymer?
           let stepsPerExchange = 1
-          let numExchanges     = 10 --50000
-          temperatures <- prepareTemperatureSet numReplicas 100.0 0.1
+          let numExchanges     = 1000
+          temperatures <- prepareTemperatureSet numReplicas 1000.0 0.1
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
           remcFinalState <- remcProtocol polySampler scoreSet temperatures stepsPerExchange numExchanges iniModels

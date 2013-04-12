@@ -38,9 +38,9 @@ makeScoreSet name weightsAndSubComponents = self
 
 -- TODO: more convenient interface to scoring functions.
 -- | Makes a default set of scoring functions, given a distance restraint set.
-makeAllScores stericWeight restraintsInput topo = do distScore <- prepareDistanceScore (computePositions topo) restraintsInput
-                                                     return $! makeScoreSet "score" [ (1.0, distScore)
-                                                                                    , (stericWeight, stericScore) ]
+makeAllScores stericWeight distWeight restraintsInput topo = do distScore <- prepareDistanceScore (computePositions topo) restraintsInput
+                                                                return $! makeScoreSet "score" [ (distWeight, distScore)
+                                                                                               , (stericWeight, stericScore) ]
 
 -- | Reports details of a scoring function to the standard output.
 reportModelScore = hReportModelScore stdout
