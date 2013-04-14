@@ -40,7 +40,7 @@ main' fragmentInputFilename silentInputFilename restraintsInput silentCurrentOut
        hPutStrLn stderr $ showTopoResidueRange mdl
        fragset <- checkFragments mdl inFragSet
        let cartopo = computePositions mdl
-       scoreSet <- time' "Preparing scoring function" $ makeAllScores 10 restraintsInput mdl
+       scoreSet <- time' "Preparing scoring function" $ makeAllScores 1 1 restraintsInput mdl
        iniScore <- time "Computing initial score" $ score scoreSet $ initTorsionModel mdl
        annState <- time "Annealing protocol" $ annealingProtocol (torsionFragSampler fragset) scoreSet (iniScore*0.2) 0.9 30 100 $ initTorsionModel mdl
        let bestMdl    = model $ best    annState

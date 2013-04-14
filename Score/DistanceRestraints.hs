@@ -15,6 +15,7 @@ import qualified Data.Vector.V3     as V3
 import qualified Data.Vector.Class  as V3
 import qualified Data.IntMap        as IMap
 import qualified Rosetta.Restraints as R
+import Debug.Trace(traceShow)
 
 import Model
 import Topo
@@ -160,12 +161,12 @@ checkDistanceRestraints' rset carTopo = scores
     score  pos1 pos2 = rScore $ V3.vmag $ pos2 - pos1
     rScore dist (R.RGaussian avg dev est) = (dif*dif)/(2*dev*dev) -- ignored log of exp part... -> different constant
       where -- NOTE: we ignore lower bounds!
-        dif = min 0 $ dist - avg
+        dif = max 0 $ dist - avg
     -- NOTE: in ROSETTA there is a separate equation for violation larger than stdev above hibound
     rScore dist (R.RBounded lo hi dev) = dif*dif/dev
       where
         --dif = maximum [lo - dist, dist - hi, 0] -- ignoring lower bound again!
-        dif = maximum [dist - hi, 0]
+        dif = max 0 $ dist - hi
     -- TODO: do with need max penalty?
     scores = V.zipWith3 score lefts rights funcs
 
