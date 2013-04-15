@@ -17,6 +17,7 @@ module REMC( REMCState(..)
            , replica2SilentModel
            , writeREMC2PDB
            , writeREMC2Silent
+           , writeREMCState
            ) where
 
 import           System.Random
@@ -83,10 +84,10 @@ showReplicaState (repl, temp) = concat [      adjust  2 $ show      $ replId    
                                          "@", adjust  5 $ showFloat   temp               -- replica's current temperature
                                        ]
 
-instance (NFData (AnnealingState m)) => NFData (Replica m) where
+instance NFData (AnnealingState m) => NFData (Replica m) where
   rnf = rnf . ann
 
-instance (NFData (Replica m)) => NFData (REMCState m) where
+instance NFData (Replica m) => NFData (REMCState m) where
   rnf = uncurry seq . (rnf . replicas &&& rnf . temperatures)
 
 -- | Checks integrity of REMCState.
@@ -120,25 +121,28 @@ checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCri
 -- it is possible for it to reach lowest temperature in a single round of exchanges.
 exchanges ::  REMCState m -> IO (REMCState m)
 exchanges remcSt = do assertM $ correctREMCState remcSt
-                      replicas' <- uncurry exchange . (replicas &&& temperatures) $ remcSt
+                      replicas' <- uncurry exchanges' . (replicas &&& temperatures) $ remcSt
                       let remcSt' = remcSt { replicas = replicas' }
                       assertM $ correctREMCState remcSt'
                       return $! remcSt' 
   where
-    exchange :: [Replica m] -> [Double] -> IO [Replica m]
-    exchange (ra:rb:rs) (ta:tb:ts) = do cond <- checkExchangeCriterion tb ta (replicaScore rb) (replicaScore ra)
-                                        if not cond
-                                          then do rbs <- exchange (rb:rs) (tb:ts)
-                                                  return $! ra:rbs
-                                          else do rbs <- exchange (ra:rs) (tb:ts)
-                                                  return $! rb:rbs
-    exchange [ra]       [ta]       = return [ra]
+    exchanges' :: [Replica m] -> [Double] -> IO [Replica m]
+    exchanges' (ra:rb:rs) (ta:tb:ts) = do cond <- checkExchangeCriterion tb ta (replicaScore rb) (replicaScore ra)
+                                          if not cond
+                                            then do rbs <- exchanges' (rb:rs) (tb:ts)
+                                                    return $! ra:rbs
+                                            else do rbs <- exchanges' (ra:rs) (tb:ts)
+                                                    return $! rb:rbs
+    exchanges' [ra]       [ta]       = return [ra]
 
 -- * Computing temperature set for a given range of temperatures and number of replicas.
+-- | Computes a fixed temperature step that takes us from high starting
+-- temperatures to low goal temperature in a given number of multiplications.
 temperatureStep ::  Int -> Double -> Double -> Double
 temperatureStep numReplicas maxT minT = exp $ (log minT - log maxT)/fromIntegral numReplicas
 
--- TODO: should have some logging monad for general error reporting?
+-- | Prepares a set of temperatures with given starting parameters (see
+-- `temperatureStep`), and prints it to output.
 prepareTemperatureSet numReplicas maxT minT = do when (step < 0.5) $
                                                    hPutStrLn stderr $ "Temperature step is likely too steep: " ++ shows step "."
                                                  return tempSet
@@ -153,10 +157,12 @@ prepareTemperatureSet numReplicas maxT minT = do when (step < 0.5) $
 -- | Perform REMC protocol sequentially for given sampler, scoring
 -- function, a set of temperatures, number of samplings per exchange, number
 -- of exchanges(stages), and a set of models.
-remcProtocol :: (NFData m, Model m) => (Modelling m -> IO (Modelling m)) ->
-                                       ScoringFunction -> [Double] -> Int -> Int ->
-                                       [m] -> IO (REMCState m)
-remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSet =
+remcProtocol :: (NFData m, Model m) => (Modelling m    -> IO (Modelling m)) ->
+                                       (REMCState m    -> IO ()           ) -> 
+                                       ScoringFunction ->
+                                       [Double] -> Int -> Int -> [m] ->
+                                       IO (REMCState m)
+remcProtocol sampler everyStageAction scoreSet temperatures stepsPerExchange numExchanges modelSet =
   do remcState <- initREMC scoreSet temperatures modelSet
      putStr "Expected number of exchanges: "
      print numExchanges
@@ -167,6 +173,7 @@ remcProtocol sampler scoreSet temperatures stepsPerExchange numExchanges modelSe
                                                  hPrint stderr remcSt' -- DEBUG
                                                  --hPutStr stderr "Score components for last replica:\n"
                                                  --reportModellingScore . current . ann . last. replicas $ remcSt
+                                                 everyStageAction remcSt'
                                                  return remcSt'
 
 -- | Initialize state of REMC protocol.
@@ -244,9 +251,15 @@ replica2PDB temp repl = BS.concat [ "REMARK "
                                     showTorsionTopoAsPDB $
                                     torsionTopo          $
                                     replica2Model repl
-                                  , "\nENDMDL"]
+                                  , "\nENDMDL" ]
   where
     scores = modelScores . current . ann $ repl
     smdl   = replica2SilentModel repl
     (scoreHeader, showScores) = S.makeScoreShower [smdl]
+
+-- | Saves REMC state into both silent and PDB output files.
+-- Intended to work as an action applied at every REMC stage.
+writeREMCState silentOutput pdbOutput remcState =
+  do writeREMC2Silent silentOutput remcState
+     writeREMC2PDB    pdbOutput    remcState
 

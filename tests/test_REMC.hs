@@ -129,14 +129,11 @@ main = do (poly, fragSet, scoreSet,
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makePolymerModel poly -- TODO: use initial models within a polymer?
           let stepsPerExchange = 3
-          let numExchanges     = 1000
+          let numExchanges     = 10
           temperatures <- prepareTemperatureSet numReplicas 8000.0 1.0
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
-          remcFinalState <- remcProtocol polySampler scoreSet temperatures stepsPerExchange numExchanges iniModels
-          --polymer' <- annealingProtocol polySampler scoreSet 1.0 0.5 10 10 $ makePolymerModel polymer
-          writeREMC2Silent "remc.out" remcFinalState
-          writeREMC2PDB    "remc.pdb" remcFinalState
+          remcProtocol polySampler (writeREMCState "remc.out" "remc.pdb") scoreSet temperatures stepsPerExchange numExchanges iniModels
 
 polymerOfLastReplica = polymer . model . best . ann . last . replicas
 
