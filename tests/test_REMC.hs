@@ -129,7 +129,7 @@ main = do (poly, fragSet, scoreSet,
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makePolymerModel poly -- TODO: use initial models within a polymer?
           let stepsPerExchange = 3
-          let numExchanges     = 10
+          let numExchanges     = 1000
           temperatures <- prepareTemperatureSet numReplicas 8000.0 1.0
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures

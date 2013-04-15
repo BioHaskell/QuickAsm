@@ -25,9 +25,10 @@ import           Control.DeepSeq(NFData(..), deepseq, force)
 import           Control.Exception(assert)
 import           Data.List(intercalate)
 import           Control.Arrow((&&&))
-import           Control.Monad(forM, when)
+import           Control.Monad(forM, when, void)
 import           System.IO(hPutStrLn, hPutStr, hPrint, stderr)
 import qualified Data.ByteString.Char8 as BS
+import           GHC.Conc(forkIO)
 
 import           Util.Parallel(parallel, withParallel)
 --import qualified Control.Monad.Parallel as ParallelMonad(mapM)
@@ -259,7 +260,8 @@ replica2PDB temp repl = BS.concat [ "REMARK "
 
 -- | Saves REMC state into both silent and PDB output files.
 -- Intended to work as an action applied at every REMC stage.
-writeREMCState silentOutput pdbOutput remcState =
+writeREMCState :: Model m => FilePath -> FilePath -> REMCState m -> IO ()
+writeREMCState silentOutput pdbOutput remcState = void . forkIO . time "Writing current REMC state" $
   do writeREMC2Silent silentOutput remcState
      writeREMC2PDB    pdbOutput    remcState
 
