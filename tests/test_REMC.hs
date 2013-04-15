@@ -86,7 +86,7 @@ readInputs inputSilent inputFragSet restraintsInput = do
     preFrags <- time "Reading fragment set"  $ F.processFragmentsFile inputFragSet
     fragSet' <- time "Checking fragment set" $ checkFragments topo preFrags
     distScore <- time' "Preparing distance restraints" $ prepareDistanceScore (computePositions topo) restraintsInput
-    scoreSet <- time' "Preparing distance restraints" $ makeAllScores 1 1 restraintsInput topo 
+    scoreSet <- time' "Preparing distance restraints" $ makeAllScores 0.001 1 restraintsInput topo 
     let seq = topo2sequence topo
     let (monoSeq, linkerSeq) = computePolymerSequence monomerLength linkerLength seq
     print $ monomerLength * monomerCount + linkerLength * (monomerCount - 1)
