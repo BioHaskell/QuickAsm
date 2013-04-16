@@ -18,6 +18,7 @@ module REMC( REMCState(..)
            , writeREMC2PDB
            , writeREMC2Silent
            , writeREMCState
+           , writeREMCStateEvery
            ) where
 
 import           System.Random
@@ -257,6 +258,12 @@ replica2PDB temp repl = BS.concat [ "REMARK "
     scores = modelScores . current . ann $ repl
     smdl   = replica2SilentModel repl
     (scoreHeader, showScores) = S.makeScoreShower [smdl]
+
+writeREMCStateEvery n silentOutput pdbOutput remcState = when (remcPerformedSamplingSteps remcState + 1 `mod` n == 0) $
+                                                           writeREMCState silentOutput pdbOutput remcState
+
+remcPerformedSamplingSteps ::  REMCState m -> Int
+remcPerformedSamplingSteps = steps . ann . head . replicas                           
 
 -- | Saves REMC state into both silent and PDB output files.
 -- Intended to work as an action applied at every REMC stage.

@@ -30,7 +30,9 @@ data AnnealingState m = AnnState { best      :: Modelling m
                                  }
 
 instance Show (AnnealingState m) where
-  show annState = concat ["Had ",            show $ successes            annState,
+  show annState = concat ["After ",          show $ steps                annState,
+                          " steps, and " ,   show $ stages               annState,
+                          " stages had ",    show $ successes            annState,
                           ", best score:",   show $ modelScore $ best    annState,
                           " current score:", show $ modelScore $ current annState]
 
@@ -58,7 +60,8 @@ samplingStep sampler temperature annState =
   do newMdl <- sampler $ current annState
      let newScore = modelScore newMdl
      crit <- checkMetropolisCriterion temperature (modelScore $ current annState) newScore
-     return $! annState { successes = if crit
+     return $! annState { steps = steps annState + 1
+                        , successes = if crit
                                          then successes annState + 1
                                          else successes annState
                         , current   = if crit
@@ -67,6 +70,7 @@ samplingStep sampler temperature annState =
                         , best      = if newScore < modelScore (best annState)
                                          then newMdl
                                          else best annState }
+
 -- TODO: here verify consistency of model and fragset!
 -- | Initializes annealing by creating Modelling objects, and AnnealingState
 initAnnealing :: (Model m) => ScoringFunction -> m -> IO (AnnealingState m)
@@ -89,7 +93,7 @@ annealingStageWithReport sampler steps temperature annealingState = --time "Anne
 
 annealingStage sampler steps temperature annealingState =
     do result <- steps `timesM` samplingStep sampler temperature $ annealingState
-       result `deepseq` return $! result
+       result `deepseq` return $! result { stages = stages result + 1 }
 
 
 -- | Performs N stages of M steps of Metropolis MC annealing protocol with
