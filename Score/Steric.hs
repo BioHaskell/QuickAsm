@@ -56,10 +56,11 @@ cRadius = atomicRadius . atomType . cAtName
 -- http://www.sklogwiki.org/SklogWiki/index.php/Soft_sphere_potential
 vdwScore ::  Double -> Cartesian -> Cartesian -> Double
 vdwScore percent at1 at2 = if notConnected (at1, at2) && notSame (at1, at2)
-                             then max 0.0 $ epsilon * ((cRadius at1 + cRadius at2) * percent / (cPos at1 `O.dist` cPos at2)) ** 12
-                             else     0.0
+                             then bounded 0.0 maxVdW $ ((cRadius at1 + cRadius at2) * percent / (cPos at1 `O.dist` cPos at2)) ** 12
+                             else                      0.0
   where
-    epsilon = 1.0
+    bounded aMin aMax value = max aMin . min aMax $ value
+    maxVdW = 100
 
 -- | Returns all atoms in an Octree that are within a given radius of a given Cartesian atom.
 atomsWithinRange :: O.Octree Cartesian -> Double -> Cartesian -> [Cartesian]

@@ -198,7 +198,7 @@ subrange rset (from, to) = assertions
     size'   = length lefts
     size''  = length rights
     size''' = length toRenum
-    assertions = assert ((size' == size'') && (size'' == size'''))
+    assertions = assert $ size' == size'' && size'' == size'''
     toRenum = filter restraintInRange $ byNum rset
     renumDict = IMap.fromList $ zip (map num toRenum) [0..] 
     renum restr = restr { num = renumDict IMap.! num restr }

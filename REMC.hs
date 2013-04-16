@@ -208,8 +208,9 @@ remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
 
 -- * Saving structures from REMCState to file.
 -- | Writes a REMC state as a silent file.
+-- Lowest energy first.
 writeREMC2Silent ::  Model m => FilePath -> REMCState m -> IO ()
-writeREMC2Silent fname remc = S.writeSilentFile fname $ zipWith assignName mdls $ replicaNames remc
+writeREMC2Silent fname remc = S.writeSilentFile fname $ reverse $ zipWith assignName mdls $ replicaNames remc
   where
     assignName mdl description = mdl { S.name = description }
     mdls = map replica2SilentModel . replicas $ remc
@@ -236,24 +237,31 @@ replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
 --writeREMC2PDB :: Model m => FilePath -> REMCState m -> IO ()
 writeREMC2PDB ::  Model m => FilePath -> REMCState m -> IO ()
 writeREMC2PDB fname remc = BS.writeFile fname $ BS.intercalate "\n" $
-                             zipWith replica2PDB (temperatures remc) (replicas remc)
+                             zipWith3 replica2PDB (revOrdinals  remc)
+                                                  (temperatures remc)
+                                                  (replicas     remc)
+
+-- | Helper function returning reversed ordinal numbers of the replicas/models in REMCState.
+revOrdinals remc = [length (replicas remc)..1]
 
 -- | Converts a temperature and replice to PDB format string.
-replica2PDB ::  Model m => Double -> Replica m -> BS.ByteString
-replica2PDB temp repl = BS.concat [ "REMARK "
-                                  , scoreHeader
-                                  , "\nREMARK "
-                                  , showScores smdl
-                                  , "\nREMARK Final temperature: "
-                                  , bshow temp
-                                  , "\nMODEL "
-                                  , bshow $ replId repl
-                                  , "\n"
-                                  , BS.pack              $
-                                    showTorsionTopoAsPDB $
-                                    torsionTopo          $
-                                    replica2Model repl
-                                  , "\nENDMDL" ]
+replica2PDB ::  Model m => Int -> Double -> Replica m -> BS.ByteString
+replica2PDB nth temp repl = BS.concat [ "REMARK "
+                                      , scoreHeader
+                                      , "\nREMARK "
+                                      , showScores smdl
+                                      , "\nREMARK Final temperature: "
+                                      , bshow temp
+                                      , "\nREMARK Replica id: "
+                                      , bshow $ replId repl
+                                      , "\nMODEL "
+                                      , bshow nth
+                                      , "\n"
+                                      , BS.pack              $
+                                        showTorsionTopoAsPDB $
+                                        torsionTopo          $
+                                        replica2Model repl
+                                      , "\nENDMDL" ]
   where
     scores = modelScores . current . ann $ repl
     smdl   = replica2SilentModel repl
@@ -263,7 +271,7 @@ writeREMCStateEvery n silentOutput pdbOutput remcState = when (remcPerformedSamp
                                                            writeREMCState silentOutput pdbOutput remcState
 
 remcPerformedSamplingSteps ::  REMCState m -> Int
-remcPerformedSamplingSteps = steps . ann . head . replicas                           
+remcPerformedSamplingSteps = steps . ann . head . replicas
 
 -- | Saves REMC state into both silent and PDB output files.
 -- Intended to work as an action applied at every REMC stage.
