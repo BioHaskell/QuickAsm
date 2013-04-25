@@ -19,6 +19,10 @@ cabal-version:       >=1.8
 tested-with:         GHC==7.4.2
 --data-files:          README
 
+flag old-bytestring
+  description:      Use old bytestring (versions 0.9.*, before GHC 7.6 series.)
+  default:          False
+
 source-repository head
   type:     git
   location: git://github.com:mgajda/quickasm.git
@@ -43,6 +47,11 @@ Library
                     Util.Parallel,
                     Data.Tree.Util
   exposed:          True
+  if flag(old-bytestring)
+    cpp-options:      -DOLD_BYTESTRING=1
+    build-depends: bytestring <= 0.9.2.1
+  else
+    build-depends: bytestring >= 0.10.0.0
 
 Executable          checkSteric
   build-depends:    QuickAsm, base, hRosetta, bytestring, Octree >= 0.5, containers
@@ -91,6 +100,11 @@ Test-suite          test_Sparta
   Hs-Source-Dirs:   tests
   main-is:          test_Sparta.hs
   type:             exitcode-stdio-1.0
+  if flag(old-bytestring)
+    cpp-options:      -DOLD_BYTESTRING=1
+    build-depends: bytestring <= 0.9.2.1
+  else
+    build-depends: bytestring >= 0.10.0.0
 
 Test-suite          test_Polymer
   build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq, filepath, process, unix, directory, random, vector >= 0.9.1

@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings, TypeFamilies #-}
 module Topo( Tree          (..)
            , Torsion       (..)
            , Cartesian     (..)
@@ -98,8 +98,23 @@ cartesianId :: Cartesian -> (Int, Int, String, String)
 cartesianId c = (cAtId c, cResId c, cAtName c, cResName c)
 
 -- | Extracts atom identifiers from Torsion record.
-torsionId   :: Torsion   -> (Int, Int, String, String)
-torsionId   t = (tAtId t, tResId t, tAtName t, tResName t)
+torsionId :: Torsion -> (Int, Int, String, String)
+torsionId t = (tAtId t, tResId t, tAtName t, tResName t)
+
+data Topo r = Topo { unTopo :: [Chain r] }
+
+data family   Chain a
+
+-- | Start of a Chain of Torsion records.
+data instance Chain Torsion = TChain { tTree      :: Tree Torsion
+                                     , start      :: !Vector3
+                                     , tChainCode :: Char
+                                     }
+
+-- | Start of a Chain of Cartesian records.
+data instance Chain Cartesian = CChain { cTree      :: Tree Cartesian
+                                       , cChainCode :: Char
+                                       }
 
 -- | Molecule topology in torsion angles.
 type TorsionTopo   = Tree Torsion

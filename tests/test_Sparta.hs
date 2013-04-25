@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Main where
 
 import System.IO(hPutStrLn, stderr)
@@ -13,7 +14,9 @@ import Util.Timing
 
 exDir = "examples/sparta"
 
+#ifdef OLD_BYTESTRING
 instance NFData BS.ByteString where
+#endif
 
 spartaOutputFilename    = exDir </> "sparta.out"
 spartaOutputFilename2   = exDir </> "sparta_asyn.out"
