@@ -30,7 +30,7 @@ import           Util.Fasta
 import           Util.Assert(assertM)
 import           Util.Timing
 
-inputSilent     = "examples/fibril/fibril.out"
+inputSilent     = "examples/polymer/polymer.out"
 inputFragSet    = "examples/assembly/aat000_09.200_R3"
 restraintsInput = "examples/assembly/asyn_gs_long_bb.newcst"
 
