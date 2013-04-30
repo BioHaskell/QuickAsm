@@ -12,7 +12,8 @@ module Topo( Tree          (..)
            , xferT
 
            , tOXT
-           , hasOXT
+           , tHasOXT
+           , cHasOXT
 
            , tShowRes
 
@@ -263,8 +264,17 @@ constructBackbone recs = head $ constructBackbone' recs [cterminus]
 tOXT resName resId omega = Node (atWithDihe resName resId "OXT" omega) []
 
 -- | Checks that a topology has OXT at the end.
-hasOXT :: TorsionTopo -> Bool
-hasOXT = (\t -> tAtName t == "OXT") . last . backbone
+hasOXTSelector :: (t -> String) -> Tree t -> Bool
+hasOXTSelector selector = (=="OXT") . selector . chainEnding
+
+-- | Returns a chain's ending.
+chainEnding = last . backbone
+
+-- | Whether TorsionTopo has "OXT" ending.
+tHasOXT = hasOXTSelector tAtName
+
+-- | Whether CartesianTopo has "OXT" ending.
+cHasOXT = hasOXTSelector cAtName
 
 -- TODO: now we are using single-letter aminoacid codes -> convert to PDB codes
 

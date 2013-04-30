@@ -60,8 +60,8 @@ debugFragSet fragSet = do putStrLn $ "Fragment set length: "             ++ (sho
     showEach projection = unwords . map show . V.toList . V.map (projection . V.head) . F.unRFragSet
 
 debugPolymer ::  Polymer -> String -> String -> IO ()
-debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (show . hasOXT . monomer) polymer
-                                            putStrLn $ "Polymer has OXT:" ++ (show . hasOXT . linker ) polymer
+debugPolymer polymer monoSeq linkerSeq = do putStrLn $ "Monomer has OXT:" ++ (show . tHasOXT . monomer) polymer
+                                            putStrLn $ "Polymer has OXT:" ++ (show . tHasOXT . linker ) polymer
                                             putStrLn $ "Monomer residues:" ++ (unwords . nub . map tShowRes . backbone . monomer ) polymer
                                             putStrLn $ "Extracted monomer seq: "   ++ monoSeq2
                                             putStrLn $ "Extracted linker  seq: "   ++ linkerSeq2

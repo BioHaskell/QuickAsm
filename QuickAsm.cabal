@@ -119,3 +119,11 @@ Test-suite          test_REMC_QC
   main-is:          test_REMC_QC.hs
   type:             exitcode-stdio-1.0
 
+Test-suite          test_Fibril_REMC
+  build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq,
+                    filepath, process, unix, directory, random, vector >= 0.9.1,
+                    QuickCheck >= 2.5.1.1
+  Hs-Source-Dirs:   tests
+  main-is:          test_Fibril_REMC.hs
+  type:             exitcode-stdio-1.0
+
