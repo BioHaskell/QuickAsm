@@ -202,6 +202,7 @@ remcProtocol sampler everyStageAction scoreSet temperatures stepsPerExchange num
         hPrint stderr remcSt' -- DEBUG
         --hPutStr stderr "Score components for last replica:\n"
         --reportModellingScore . current . ann . last. replicas $ remcSt
+        hPrint stderr "Running end of stage action..."
         everyStageAction remcSt'
         return remcSt'
 
@@ -245,7 +246,10 @@ remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
 writeREMC2Silent ::  Model m => FilePath    -- ^ output filename
                              -> REMCState m -- ^ annealing state
                              -> IO ()
-writeREMC2Silent fname remc = S.writeSilentFile fname $ reverse $ zipWith assignName mdls $ replicaNames remc
+writeREMC2Silent fname remc = S.writeSilentFile fname     $
+                                reverse                   $
+                                  zipWith assignName mdls $
+                                    replicaNames remc
   where
     assignName mdl description = mdl { S.name = description }
     mdls = map replica2SilentModel . replicas $ remc
@@ -269,18 +273,21 @@ replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
     conversion = torsionTopo2SilentModel . torsionTopo . replica2Model
 
 -- | Saving output of REMC to a single PDB file with multiple models.
---writeREMC2PDB :: Model m => FilePath -> REMCState m -> IO ()
 writeREMC2PDB ::  Model m => FilePath    -- ^ output filename
                           -> REMCState m -- ^ annealing state
                           -> IO ()
 writeREMC2PDB fname remc = BS.writeFile fname $ BS.intercalate "\n" $
+                             BS.concat ["REMARK      Writing ",
+                                        bshow $ length $ replicas remc,
+                                        " replicas."
+                                       ] :
                              zipWith3 replica2PDB (revOrdinals  remc)
                                                   (temperatures remc)
                                                   (replicas     remc)
 
 -- | Helper function returning reversed ordinal numbers of the
 -- replicas/models in REMCState.
-revOrdinals remc = [length (replicas remc)..1]
+revOrdinals remc = reverse [1..length (replicas remc)]
 
 -- | Converts a temperature and replice to PDB format string.
 replica2PDB ::  Model m => Int           -- ^ ordinal number of the replica
@@ -304,8 +311,8 @@ replica2PDB nth temp repl = BS.concat [ "REMARK "
                                         replica2Model repl
                                       , "\nENDMDL" ]
   where
-    scores = modelScores . current . ann $ repl
-    smdl   = replica2SilentModel repl
+    scores                    = modelScores . current . ann $ repl
+    smdl                      = replica2SilentModel repl
     (scoreHeader, showScores) = S.makeScoreShower [smdl]
 
 -- | Write annealing state to disk every Nth exchange.
