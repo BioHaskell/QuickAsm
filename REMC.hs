@@ -80,20 +80,25 @@ replica2Model ::  Replica c -> c
 replica2Model = model . current . ann
 
 -- | Shows replica id, energy and current temperature together.
-showReplicaState :: (Replica m, Double) -> String
-showReplicaState (repl, temp) = concat [      adjust  2 $ show      $ replId       repl,
-                                         ":", adjust 12 $ showFloat $ replicaScore repl, -- replica's current score
-                                         "@", adjust  5 $ showFloat   temp               -- replica's current temperature
-                                       ]
+showReplicaState :: (Replica m, -- ^ replica
+                     Double)    -- ^ temperature of the replica
+                 -> String
+showReplicaState (repl, temp) =
+    concat [      adjust  2 $ show      $ replId       repl,
+             ":", adjust 12 $ showFloat $ replicaScore repl, -- replica's current score
+             "@", adjust  5 $ showFloat   temp               -- replica's current temperature
+           ]
 
 instance NFData (AnnealingState m) => NFData (Replica m) where
   rnf = rnf . ann
 
 instance NFData (Replica m) => NFData (REMCState m) where
-  rnf = uncurry seq . (rnf . replicas &&& rnf . temperatures)
+  rnf = uncurry seq . (rnf . replicas  &&&
+                       rnf . temperatures)
 
 -- | Checks integrity of REMCState.
-correctREMCState = uncurry (==) . (length . replicas &&& length . temperatures)
+correctREMCState = uncurry (==) . (length . replicas  &&&
+                                   length . temperatures)
 
 -- * Exchange
 -- | Replica exchange probability
@@ -101,12 +106,20 @@ correctREMCState = uncurry (==) . (length . replicas &&& length . temperatures)
 -- Assuming units where k=1
 -- Note that first argument always corresponds to lower temperature,
 -- and second to higher temperature.
-exchangeCriterion ::  Double -> Double -> Double -> Double -> Double
+exchangeCriterion :: Double  -- ^ temperature of first replica (lower)
+                  -> Double  -- ^ temperature of second replica (higher)
+                  -> Double  -- ^ current energy of the first replica
+                  -> Double  -- ^ current energy of the second replica
+                  -> Double  -- ^ probability that exchange happens
 exchangeCriterion t1 t2 e1 e2 = assert (t1 < t2) $
                                    min 1 $ exp $ (e1 - e2) * (1/t1 - 1/t2)
 
 -- | Checks Metropolis criterion, if given parameters, and a random number generator.
-checkExchangeCriterion :: Double -> Double -> Double -> Double -> IO Bool
+checkExchangeCriterion :: Double  -- ^ temperature of first replica (lower)
+                       -> Double  -- ^ temperature of second replica (higher)
+                       -> Double  -- ^ current energy of the first replica
+                       -> Double  -- ^ current energy of the second replica
+                       -> IO Bool -- ^ whether replicas will be exchanged
 checkExchangeCriterion t1 t2 e1 e2 = checkCriterionIO $ exchangeCriterion t1 t2 e1 e2
 {- DEBUG:
 checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCriterion t1 t2 e1 e2
@@ -118,9 +131,10 @@ checkExchangeCriterion t1 t2 e1 e2 = do result <- checkCriterionIO $ exchangeCri
                                         return result
  -}
 
--- | Perform a single iteration of replica exchange attempts between neighbouring replicas.
--- Does it in a such way, that if a lowest score appears at highest temperature,
--- it is possible for it to reach lowest temperature in a single round of exchanges.
+-- | Perform a single iteration of replica exchange attempts between
+-- neighbouring replicas.  Does it in a such way, that if a lowest score
+-- appears at highest temperature, it is possible for it to reach lowest
+-- temperature in a single round of exchanges.
 exchanges ::  REMCState m -> IO (REMCState m)
 exchanges remcSt = do assertM $ correctREMCState remcSt
                       replicas' <- uncurry exchanges' . (replicas &&& temperatures) $ remcSt
@@ -140,11 +154,18 @@ exchanges remcSt = do assertM $ correctREMCState remcSt
 -- * Computing temperature set for a given range of temperatures and number of replicas.
 -- | Computes a fixed temperature step that takes us from high starting
 -- temperatures to low goal temperature in a given number of multiplications.
-temperatureStep ::  Int -> Double -> Double -> Double
+temperatureStep :: Int    -- ^ number of replicas from minimal up to maximal temperature
+                -> Double -- ^ highest temperature
+                -> Double -- ^ lowest temperature
+                -> Double
 temperatureStep numReplicas maxT minT = exp $ (log minT - log maxT)/fromIntegral numReplicas
 
 -- | Prepares a set of temperatures with given starting parameters (see
 -- `temperatureStep`), and prints it to output.
+prepareTemperatureSet :: Int         -- ^ number of temperature levels
+                      -> Double      -- ^ highest temperature level
+                      -> Double      -- ^ lowest temperature level
+                      -> IO [Double] -- ^ list of temperature levels
 prepareTemperatureSet numReplicas maxT minT = do when (step < 0.5) $
                                                    hPutStrLn stderr $ "Temperature step is likely too steep: " ++ shows step "."
                                                  return tempSet
@@ -159,27 +180,36 @@ prepareTemperatureSet numReplicas maxT minT = do when (step < 0.5) $
 -- | Perform REMC protocol sequentially for given sampler, scoring
 -- function, a set of temperatures, number of samplings per exchange, number
 -- of exchanges(stages), and a set of models.
-remcProtocol :: (NFData m, Model m) => (Modelling m    -> IO (Modelling m)) ->
-                                       (REMCState m    -> IO ()           ) -> 
-                                       ScoringFunction ->
-                                       [Double] -> Int -> Int -> [m] ->
-                                       IO (REMCState m)
+remcProtocol :: (NFData m, Model m) =>
+                      (Modelling m    -> IO (Modelling m)) -- ^ sampling step
+                   -> (REMCState m    -> IO ()           ) -- ^ action to run after every stage
+                   -> ScoringFunction                      -- ^ scoring function
+                   -> [Double]                             -- ^ temperatures
+                   -> Int                                  -- ^ sampling steps to perform between exchanges
+                   -> Int                                  -- ^ number of exchange stages to perform
+                   -> [m]                                  -- ^ initial models
+                   -> IO (REMCState m)
 remcProtocol sampler everyStageAction scoreSet temperatures stepsPerExchange numExchanges modelSet =
   do remcState <- initREMC scoreSet temperatures modelSet
      putStr "Expected number of exchanges: "
      print numExchanges
      withParallel $ numExchanges `timesM` remcStageAndReport sampler stepsPerExchange $ remcState
   where
-    remcStageAndReport sampler steps remcSt = do remcSt' <- time "REMC stage" $ remcStage sampler stepsPerExchange remcSt
-                                                 --hPutStrLn stderr "REMC stage: "
-                                                 hPrint stderr remcSt' -- DEBUG
-                                                 --hPutStr stderr "Score components for last replica:\n"
-                                                 --reportModellingScore . current . ann . last. replicas $ remcSt
-                                                 everyStageAction remcSt'
-                                                 return remcSt'
+    remcStageAndReport sampler steps remcSt = do
+        remcSt' <- time "REMC stage" $
+            remcStage sampler stepsPerExchange remcSt
+        --hPutStrLn stderr "REMC stage: "
+        hPrint stderr remcSt' -- DEBUG
+        --hPutStr stderr "Score components for last replica:\n"
+        --reportModellingScore . current . ann . last. replicas $ remcSt
+        everyStageAction remcSt'
+        return remcSt'
 
 -- | Initialize state of REMC protocol.
-initREMC :: Model m => ScoringFunction -> [Double] -> [m] -> IO (REMCState m)
+initREMC :: Model m => ScoringFunction  -- ^ scoring function used for all Modeling objects
+                    -> [Double]         -- ^ set of temperatures (sorted from highest to lowest)
+                    -> [m]              -- ^ set of input models
+                    -> IO (REMCState m) -- ^ initial state of simulated annealing
 initREMC scoreSet temperatures modelSet =
   do assertM $ length temperatures == length modelSet
      annStates <- forM modelSet $ initAnnealing scoreSet
@@ -188,7 +218,10 @@ initREMC scoreSet temperatures modelSet =
 
 -- | A single stage of N annealing steps per replica, and a single exchange.
 -- Takes a sampling step as a parameter.
-remcStage :: NFData m => (Modelling m -> IO (Modelling m))-> Int -> REMCState m -> IO (REMCState m)
+remcStage :: NFData m => (Modelling m -> IO (Modelling m)) -- ^ sampling step
+                      -> Int                               -- ^ number of sampling steps to perform
+                      -> REMCState m                       -- ^ input annealing state
+                      -> IO (REMCState m)
 remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
                                        annStates <- jobRunner (uncurry zip $ replicas &&& temperatures $ remcState)
                                          (\(replica, temperature) -> annealingStage sampler steps temperature $ ann replica)
@@ -209,7 +242,9 @@ remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
 -- * Saving structures from REMCState to file.
 -- | Writes a REMC state as a silent file.
 -- Lowest energy first.
-writeREMC2Silent ::  Model m => FilePath -> REMCState m -> IO ()
+writeREMC2Silent ::  Model m => FilePath    -- ^ output filename
+                             -> REMCState m -- ^ annealing state
+                             -> IO ()
 writeREMC2Silent fname remc = S.writeSilentFile fname $ reverse $ zipWith assignName mdls $ replicaNames remc
   where
     assignName mdl description = mdl { S.name = description }
@@ -235,17 +270,23 @@ replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
 
 -- | Saving output of REMC to a single PDB file with multiple models.
 --writeREMC2PDB :: Model m => FilePath -> REMCState m -> IO ()
-writeREMC2PDB ::  Model m => FilePath -> REMCState m -> IO ()
+writeREMC2PDB ::  Model m => FilePath    -- ^ output filename
+                          -> REMCState m -- ^ annealing state
+                          -> IO ()
 writeREMC2PDB fname remc = BS.writeFile fname $ BS.intercalate "\n" $
                              zipWith3 replica2PDB (revOrdinals  remc)
                                                   (temperatures remc)
                                                   (replicas     remc)
 
--- | Helper function returning reversed ordinal numbers of the replicas/models in REMCState.
+-- | Helper function returning reversed ordinal numbers of the
+-- replicas/models in REMCState.
 revOrdinals remc = [length (replicas remc)..1]
 
 -- | Converts a temperature and replice to PDB format string.
-replica2PDB ::  Model m => Int -> Double -> Replica m -> BS.ByteString
+replica2PDB ::  Model m => Int           -- ^ ordinal number of the replica
+                        -> Double        -- ^ current temperature of the replica
+                        -> Replica m     -- ^ saved replica
+                        -> BS.ByteString
 replica2PDB nth temp repl = BS.concat [ "REMARK "
                                       , scoreHeader
                                       , "\nREMARK "
@@ -267,15 +308,26 @@ replica2PDB nth temp repl = BS.concat [ "REMARK "
     smdl   = replica2SilentModel repl
     (scoreHeader, showScores) = S.makeScoreShower [smdl]
 
-writeREMCStateEvery n silentOutput pdbOutput remcState = when (remcPerformedSamplingSteps remcState + 1 `mod` n == 0) $
-                                                           writeREMCState silentOutput pdbOutput remcState
+-- | Write annealing state to disk every Nth exchange.
+writeREMCStateEvery :: Model m => Int         -- ^ every how many steps to write files
+                               -> FilePath    -- ^ silent output filename
+                               -> FilePath    -- ^ PDB output filename
+                               -> REMCState m -- ^ annealing state
+                               -> IO ()
+writeREMCStateEvery n silentOutput pdbOutput remcState =
+    when (remcPerformedSamplingSteps remcState + 1 `mod` n == 0) $
+      writeREMCState silentOutput pdbOutput remcState
 
-remcPerformedSamplingSteps ::  REMCState m -> Int
+-- | Return number of steps performed during entire annealing protocol.
+remcPerformedSamplingSteps ::  REMCState m ->  Int
 remcPerformedSamplingSteps = steps . ann . head . replicas
 
 -- | Saves REMC state into both silent and PDB output files.
 -- Intended to work as an action applied at every REMC stage.
-writeREMCState :: Model m => FilePath -> FilePath -> REMCState m -> IO ()
+writeREMCState :: Model m => FilePath    -- ^ silent output filename
+                          -> FilePath    -- ^ PDB output filename
+                          -> REMCState m -- ^ current annealing state
+                          -> IO ()
 writeREMCState silentOutput pdbOutput remcState = void . forkIO . time "Writing current REMC state" $
   do writeREMC2Silent silentOutput remcState
      writeREMC2PDB    pdbOutput    remcState
