@@ -108,12 +108,13 @@ main = do (aFibril ,
           let iniModels        = replicate numReplicas $ makeFibrilModel aFibril
           let stepsPerExchange = 3
           let numExchanges     = 1000
-          temperatures <- prepareTemperatureSet numReplicas 8000.0 1.0
+          temperatures <- prepareTemperatureSet numReplicas 100.0 0.1
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
           remcProtocol fibrilSampler
-                       (writeREMCState "remc.out" "remc.pdb")
+                       (writeREMCStateEvery 10 "remc.out" "remc.pdb") 
                        scoreSet temperatures stepsPerExchange numExchanges iniModels
+                       --(writeREMCState "remc.out" "remc.pdb")
 
 --remcProtocol :: (NFData m, Model.Model m) => (Modelling m -> IO (Modelling m))
 --                                          -> (REMCState m -> IO ())

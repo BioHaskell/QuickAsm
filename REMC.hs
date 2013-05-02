@@ -321,9 +321,17 @@ writeREMCStateEvery :: Model m => Int         -- ^ every how many steps to write
                                -> FilePath    -- ^ PDB output filename
                                -> REMCState m -- ^ annealing state
                                -> IO ()
-writeREMCStateEvery n silentOutput pdbOutput remcState =
-    when (remcPerformedSamplingSteps remcState + 1 `mod` n == 0) $
+writeREMCStateEvery n silentOutput pdbOutput remcState = do
+    hPutStrLn stderr $ concat ["Performed steps: ",
+                               show $ remcPerformedExchangeStages remcState,
+                               " condition is ",
+                               show n]
+    when (remcPerformedExchangeStages remcState + 1 `mod` n == 0) $
       writeREMCState silentOutput pdbOutput remcState
+
+-- | Return number of stages performed during entire annealing protocol.
+remcPerformedExchangeStages ::  REMCState m ->  Int
+remcPerformedExchangeStages = stages . ann . head . replicas
 
 -- | Return number of steps performed during entire annealing protocol.
 remcPerformedSamplingSteps ::  REMCState m ->  Int
