@@ -5,6 +5,7 @@ module Model( Model            (..)
             , modifyTorsionModelM ) where
 
 import Control.DeepSeq(NFData(..))
+import Debug.Trace(traceShow) -- DEBUG
 
 import Topo
 
@@ -20,8 +21,9 @@ data TorsionModel = TModel { tTopo       :: TorsionTopo
                            }
 
 instance Model TorsionModel where
-  cartesianTopo = cTopo
-  torsionTopo   = tTopo
+  cartesianTopo m = traceShow ("TorsionModel::cartesianTopo",
+                               length $ filter ((=="CA") . cAtName) $ backbone $ cTopo m) $ cTopo m
+  torsionTopo     = tTopo
 
 instance NFData TorsionModel where
   rnf a = rnf tTopo `seq` rnf cTopo

@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+-- | Wrapper for parallel evaluation of a list of IO actions.
+-- Encapsulates whole interface with parallel/withParallel pair.
 module Util.Parallel(parallel, withParallel) where
 
 import qualified Control.Concurrent.ParallelIO
@@ -7,6 +9,8 @@ import qualified Data.List as L(isPrefixOf)
 import GHC.Environment(getFullArgs) -- to check RTS params
 import Control.Monad(when)
 
+-- | Perform a set of operations in parallel.
+parallel ::  [IO a] -> IO [a]
 parallel = Control.Concurrent.ParallelIO.parallel
 
 -- * Parallelization with parallel-io

@@ -14,10 +14,16 @@ import Util.Show(bAdjust)
 
 import Model
 
+-- | List of score labels and values.
 type ScoreList = [(BS.ByteString, Double)]
 
+-- | Function showing details of scoring function for a given model.
 type DetailShower = (Model m) => m -> IO [BS.ByteString]
+
+-- | Function listing function components, and their total values.
 type ScoreLister  = (Model m) => m -> IO ScoreList
+
+-- | Function returning total score.
 type Scorer       = (Model m) => m -> IO Double
 
 -- TODO: Move ScoringFunction to a separate module? (Than makeScoreSet.)
@@ -28,12 +34,17 @@ data ScoringFunction = ScoringFunction {
     scoreShow   :: DetailShower
     -- | Shows a label used when showing this function along with others
   , scoreLabel  :: BS.ByteString
+    -- | List score labels and components
   , scores      :: ScoreLister 
+    -- | List of score components, first component is always self.
+    -- `subcomponents = tail . components`
   , components  :: [ScoringFunction]
   }
 
--- | Computes a value of a scoring function.
-score :: (Model m) => ScoringFunction -> m -> IO Double
+-- | Computes a total value of a scoring function.
+score :: (Model m) => ScoringFunction -- ^ scoring function
+                   -> m               -- ^ scored model
+                   -> IO Double
 score sf arg = totalScore `fmap` scores sf arg
 
 -- | Takes a total score from a scores list.
@@ -63,5 +74,4 @@ showScores labelledScores = mkLine labels `BS.append` mkLine numbers
                                  (map BS.length numbers)
     numbers        = map (BS.pack . show . snd) labelledScores
     labels         = map fst                    labelledScores
-
 

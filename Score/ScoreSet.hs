@@ -8,7 +8,7 @@ module Score.ScoreSet( makeScoreSet
                      , showScores
                      ) where
 
-import System.IO(stdout)
+import System.IO(stdout, Handle)
 
 import Topo(computePositions, TorsionTopo, CartesianTopo)
 import Score.ScoringFunction
@@ -19,7 +19,9 @@ import Model
 import qualified Data.ByteString.Char8 as BS
 
 -- | Makes a compound score out of a set of components, and assigns a name to it.
-makeScoreSet :: BS.ByteString -> [(Double, ScoringFunction)] -> ScoringFunction
+makeScoreSet :: BS.ByteString               -- ^ name of compound score
+             -> [(Double, ScoringFunction)] -- ^ list of weights and scoring functions
+             -> ScoringFunction
 makeScoreSet name weightsAndSubComponents = self
   where
     self = ScoringFunction {
@@ -38,15 +40,40 @@ makeScoreSet name weightsAndSubComponents = self
 
 -- TODO: more convenient interface to scoring functions.
 -- | Makes a default set of scoring functions, given a distance restraint set.
-makeAllScores stericWeight distWeight restraintsInput topo = do distScore <- prepareDistanceScore (computePositions topo) restraintsInput
-                                                                return $! makeScoreSet "score" [ (distWeight, distScore)
-                                                                                               , (stericWeight, stericScore) ]
+makeAllScores :: Double                      -- ^ weight of steric clash
+              -> Double                      -- ^ weight of distance restraints
+              -> FilePath                    -- ^ distance restraints input filename
+              -> TorsionTopo                 -- ^ starting structure TorsionTopo
+              -> IO ScoringFunction
+makeAllScores stericWeight distWeight restraintsInput topo = makeAllScores' stericWeight distWeight restraintsInput topo []
+
+-- | Makes a default set of scoring functions, given a distance restraint
+-- set, and adds additional components.
+makeAllScores' :: Double                      -- ^ weight of steric clash
+               -> Double                      -- ^ weight of distance restraints
+               -> FilePath                    -- ^ distance restraints input filename
+               -> TorsionTopo                 -- ^ starting structure TorsionTopo
+               -> [(Double,                   
+                    ScoringFunction)]         -- ^ list of weights and scoring functions.
+               -> IO ScoringFunction
+makeAllScores' stericWeight distWeight restraintsInput topo otherComponents = 
+                     do distScore <- prepareDistanceScore (computePositions topo) restraintsInput
+                        return $! makeScoreSet "score" ([ (distWeight,   distScore  )
+                                                        , (stericWeight, stericScore) ] ++
+                                                          otherComponents)
 
 -- | Reports details of a scoring function to the standard output.
+reportModelScore :: Model m => ScoringFunction -- ^ scoring function
+                            -> m               -- ^ model structure with scores
+                            -> IO Double
 reportModelScore = hReportModelScore stdout
 
 -- | Writes a detailed report of a scoring function evaluation for a given
 -- Model to a given file Handle.
+hReportModelScore :: Model m => Handle          -- ^ output handle
+                             -> ScoringFunction -- ^ scoring function
+                             -> m               -- ^ model structure with scores
+                             -> IO Double
 hReportModelScore handle sf mdl = do labelsValues <- scores sf mdl
                                      BS.hPutStrLn handle $ showScores labelsValues
                                      return $ snd $ head labelsValues

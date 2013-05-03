@@ -13,7 +13,7 @@ module Fibril( Fibril       (..)
              , sampleFibrilModel ) where
 
 import Control.Monad.ST
-import Control.Monad.Primitive
+--import Control.Monad.Primitive
 import System.Random                  (RandomGen, randomR)
 import qualified Data.Vector as V
 import Data.Maybe(fromMaybe, fromJust) -- DEBUG: fromMaybe
@@ -33,9 +33,9 @@ import Topo
 import FragReplace
 import Model
 
--- * Polymer data structure and its expansion.
+-- * Fibril data structure and its expansion.
 -- | Holds all information necessary for constructing a polymer
--- of Nx monomer repeats, joined by a linker.
+-- of N monomer repeats, without any linker.
 data Fibril = Fibril { monomer    :: TorsionTopo
                      , shift      :: !Double
                      , twist      :: !Double
@@ -50,13 +50,13 @@ instance NFData Fibril where
 -- | Makes a Polymer out of a monomer and linker topologies, and a number
 -- of monomer repeats.
 makeFibril monomerTopo repeats shift twist = assert (repeats > 1) $
-                                             Fibril {
-                                               monomer    = monomerTopo'
-                                             , shift      = shift
-                                             , twist      = twist
-                                             , repeats    = repeats
-                                             , monomerLen = monoLen
-                                             }
+                                               Fibril {
+                                                 monomer    = monomerTopo'
+                                               , shift      = shift
+                                               , twist      = twist
+                                               , repeats    = repeats
+                                               , monomerLen = monoLen
+                                               }
   where
     monomerTopo' = renumberResiduesT 1 monomerTopo
     monoLen      = lastResidueId monomerTopo'
@@ -71,8 +71,9 @@ data FibrilModel = FModel { fibril  :: Fibril
 -- TODO: here TorsionTopo is of different length than CartesianTopo!
 
 instance Model FibrilModel where
-  cartesianTopo = cFibril
-  torsionTopo   = monomer . fibril -- there are no "cut" nodes in TorsionTopo so far!
+  cartesianTopo fm = traceShow ("Fibril::cartesianTopo", length $ filter ((=="CA") . cAtName) $ backbone $ cFibril fm) $
+                               cFibril fm
+  torsionTopo   = tFibril -- there are no "cut" nodes in TorsionTopo so far!
 
 instance NFData FibrilModel where
   rnf m = rnf (fibril m) `seq` rnf (cFibril m)
@@ -86,14 +87,17 @@ makeFibrilModel f = FModel { fibril  = f
 
 -- | Instantiates a polymer of N identical monomer units, linked by a linker unit.
 instantiate :: Fibril -> CartesianTopo
-instantiate f = renumberAtomsC       1                $
-                renumberResiduesC    1                $
-                foldr1 glueCartesianChain             $
-                zipWith shiftMonomer [0..repeats f-1] $
-                repeat                                $
-                computePositions                      $
-                monomer              f
+instantiate f = traceShow ("instantiate",
+                           length $ filter ((=="CA") . cAtName) $ backbone result,
+                           repeats f) result
   where
+    result = (  renumberAtomsC       1              $
+                renumberResiduesC    1              $
+                foldr1  glueCartesianChain          $
+                zipWith shiftMonomer [1..repeats f] $
+                repeat                              $
+                computePositions                    $
+                monomer              f              )
     shiftMonomer num mono = fmap xform mono
       where
         -- TODO: add twist!
@@ -109,7 +113,8 @@ shiftTwist s t = shiftZ s . twistXY t
 shiftZ  s (V3.Vector3 x y z) = V3.Vector3 x y $ z + s
 
 -- | Counterclockwise twist along Z axis (along XY plane.)
-twistXY t (V3.Vector3 x y z) = V3.Vector3 (x*cost - y*sint) (x*sint + y*cost) z
+twistXY t (V3.Vector3 x y z) = V3.Vector3 (x*cost - y*sint)
+                                          (x*sint + y*cost) z
   where
     sint = sin $ degree2radian t
     cost = cos $ degree2radian t
@@ -137,7 +142,11 @@ findResId i torsion = tResId torsion == i
 -- | Replaces OXT of first chain with the second chain.
 -- TODO: move it to FragReplacement.
 glueCartesianChain :: CartesianTopo -> CartesianTopo -> CartesianTopo
-topo1 `glueCartesianChain` topo2 = result
+topo1 `glueCartesianChain` topo2 = traceShow ("glueCartesianChain",
+                                              length $ backbone topo1 ,
+                                              length $ backbone topo2 ,
+                                              length $ backbone result)
+                                             result
   where
     Just result = topo1 `changeTopoAt` (\t -> cAtName t == "OXT") $ const topo2
 
@@ -214,6 +223,8 @@ sampleFibril shiftProb twistProb fragSet aFibril gen = assertions
                              (moveShift /= (moveTwist /= moveFragment)) &&
                              (moveFragment <= not moveShift           ))
 
+-- | Sampling function for a fibril model, either changes shift&twist parameters,
+-- or exchanges a fragment within a monomer.
 sampleFibrilModel :: RandomGen t => Double      -- ^ Probability of the shift transition.
                                  -> Double      -- ^ Probability of the twist transition.
                                  -> RFragSet    -- ^ Fragment set for replacement transition.

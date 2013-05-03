@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections, OverloadedStrings, NoMonomorphismRestriction #-}
+-- | Steric clash function.
 module Score.Steric( crossClashCheck
                    , selfClashCheck
                    , crossClashCheck'
@@ -18,8 +19,10 @@ import Topo
 import Model
 
 import AtomParams
-import Score.ScoringFunction(ScoringFunction(..), simpleScoringFunction)
-import Util.Show(showFloat, showEmpty)
+import Score.ScoringFunction(ScoringFunction(..),
+                             simpleScoringFunction)
+import Util.Show(showFloat,
+                 showEmpty)
 
 -- | Converts list of Cartesian records, into an Octree with Cartesian payload.
 cartesian2octree :: [Cartesian] -> O.Octree Cartesian
@@ -55,15 +58,21 @@ cRadius = atomicRadius . atomType . cAtName
 -- by average of van der Waals radii of respective atoms.
 -- http://www.sklogwiki.org/SklogWiki/index.php/Soft_sphere_potential
 vdwScore ::  Double -> Cartesian -> Cartesian -> Double
-vdwScore percent at1 at2 = if notConnected (at1, at2) && notSame (at1, at2)
-                             then bounded 0.0 maxVdW $ ((cRadius at1 + cRadius at2) * percent / (cPos at1 `O.dist` cPos at2)) ** 12
+vdwScore percent at1 at2 = if notConnected (at1, at2) &&
+                              notSame      (at1, at2)
+                             then bounded 0.0 maxVdW $ ((cRadius at1 +  cRadius at2) * percent /
+                                                        (cPos at1 `O.dist` cPos at2)) ** 12
                              else                      0.0
   where
-    bounded aMin aMax value = max aMin . min aMax $ value
+    bounded aMin aMax value = max aMin $
+                              min aMax value
     maxVdW = 100
 
 -- | Returns all atoms in an Octree that are within a given radius of a given Cartesian atom.
-atomsWithinRange :: O.Octree Cartesian -> Double -> Cartesian -> [Cartesian]
+atomsWithinRange :: O.Octree Cartesian -- ^ Octree with atom set
+                 -> Double             -- ^ radius of atoms to check
+                 -> Cartesian          -- ^ queried atom
+                 -> [Cartesian]        -- ^ list of neighbouring atoms
 atomsWithinRange oct radius cart = map snd . O.withinRange oct radius . cPos $ cart
 
 -- | Simple check for covalently connected atoms.
@@ -120,7 +129,9 @@ selfClashCheck ::  [Cartesian] -> [(Cartesian, Cartesian)]
 selfClashCheck  = selfClashCheck'  defaultPercent
 
 -- | Checks for steric clashes with other molecule, with default parameters.
-crossClashCheck :: [Cartesian] -> [Cartesian] -> [(Cartesian, Cartesian)]
+crossClashCheck :: [Cartesian] -- ^ left atom set
+                -> [Cartesian] -- ^ right atom set
+                -> [(Cartesian, Cartesian)] -- ^ set of clashes between left and right set
 crossClashCheck = crossClashCheck' defaultPercent
 
 -- | ScoringFunction object returning a clash score.
@@ -134,6 +145,8 @@ stericScore = simpleScoringFunction "steric" fun showFun
                        map (showClash defaultPercent) . selfClashCheck . flatten . cartesianTopo
 
 -- | Shows a clash scored with a given percent (0.5 by default.)
-showClash ::  Double -> (Cartesian, Cartesian) -> BS.ByteString
+showClash :: Double                 -- ^ percentage threshold of the sum of van der Waals radii for a clash to be reported
+          -> (Cartesian, Cartesian) -- ^ two atoms between which clash happened
+          -> BS.ByteString          -- ^ diagnostic information about the clash
 showClash percent (a, b) = BS.pack . shows a . (' ':) . shows b . (' ':) . showFloat $ vdwScore percent a b
 

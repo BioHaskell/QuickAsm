@@ -7,14 +7,14 @@ import           System.Exit(exitFailure)
 import           System.Random(getStdRandom)
 import           System.Mem(performGC)
 import           Control.Exception(assert)
-import           Control.Monad(forM_)
+import           Control.Monad(forM_, void)
 import qualified Data.Vector as V
 import           Data.List(intercalate, nub)
 import           Control.Arrow((&&&))
 import           Numeric(showFFloat)
 import           Control.DeepSeq(deepseq, NFData(..), force)
 
-import           Rosetta.Silent
+import           Rosetta.Silent(SilentModel(..), processSilentFile)
 import qualified Rosetta.Fragments as F
 
 import           Fibril
@@ -38,16 +38,21 @@ monomerLength = 61
 monomerCount  = 3
 linkerLength  = 32
 
+-- | Computes length of entire Fibril (all monomers.)
 computeFibrilLength monomerCount monomerLength = monomerLength * monomerCount
 
+-- | Shows Fibril as a text in PDB format.
 showFibril = showCartesianTopo . instantiate
 
+-- | Prints debugging information about Rosetta.Fragments.RFragSet
+debugFragSet ::  F.RFragSet -> IO ()
 debugFragSet fragSet = do putStrLn $ "Fragment set length: "             ++ (show . V.length . F.unRFragSet) fragSet
                           putStrLn $ "Fragment set starting positions: " ++ showEach F.startPos              fragSet
                           putStrLn $ "Fragment set ending   positions: " ++ showEach F.endPos                fragSet
   where
     showEach projection = unwords . map show . V.toList . V.map (projection . V.head) . F.unRFragSet
 
+-- | Prints debugging information about Fibril structure.
 debugFibril ::  Fibril -> IO ()
 debugFibril aFibril = do putStrLn $ "Monomer has OXT:"  ++ (show . tHasOXT . monomer    )                       aFibril
                          putStrLn $ "Fibril has OXT:"   ++ (show . cHasOXT . instantiate)                       aFibril
@@ -59,8 +64,20 @@ debugFibril aFibril = do putStrLn $ "Monomer has OXT:"  ++ (show . tHasOXT . mon
   where
     monoSeq = topo2sequence $ monomer aFibril
 
+(seq, ss) = ("VLYVGSKTKEGVVHGVATVAEKTKEQVTNVGGAVVTGVTAVAQKTVEGAGSIAAATGFVKK"
+            ,"-EEEEEE--------EEEE-------EEEE-EEEEEEEEEEE--EEEE-----EEEEEE--")
+
 instance NFData ScoringFunction where
 
+-- | Reads all input files, cross-checks some of them, and returns data
+-- structures.
+readInputs :: FilePath             -- ^ silent input filename
+           -> FilePath             -- ^ fragment input filename
+           -> FilePath             -- ^ restraints input filename
+           -> IO (Fibril,          -- ^ Fibril description
+                  F.RFragSet,      -- ^ fragment set
+                  ScoringFunction, -- ^ scoring function
+                  String)          -- ^ sequence of the Fibril
 readInputs inputSilent inputFragSet restraintsInput = do
     topo      <- time "Read input model" $ (head . map silentModel2TorsionTopo) `fmap`
                                            processSilentFile inputSilent
@@ -81,6 +98,7 @@ readInputs inputSilent inputFragSet restraintsInput = do
                        in result `deepseq`
                             return result
 
+getFibril ::  TorsionTopo -> Int -> Either String Fibril
 getFibril topo i = extractFibril first
                                  (first + monomerLength - 1)
                                  5
@@ -89,7 +107,9 @@ getFibril topo i = extractFibril first
     first             = (monomerLength + linkerLength) * i + 1
 
 
-main = do (aFibril ,
+main ::  IO ()
+main = void $
+       do (aFibril ,
            fragSet ,
            scoreSet,
            monoSeq ) <- time "Read all inputs, and constructed fibril" $
@@ -106,23 +126,23 @@ main = do (aFibril ,
                                     return r
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makeFibrilModel aFibril
-          let stepsPerExchange = 3
-          let numExchanges     = 1000
+          let stepsPerExchange = 1
+          let numExchanges     = 1
+          --let stepsPerExchange = 3
+          --let numExchanges     = 1000
           temperatures <- prepareTemperatureSet numReplicas 100.0 0.1
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
-          remcProtocol fibrilSampler
-                       (writeREMCStateEvery 10 "remc.out" "remc.pdb") 
-                       scoreSet temperatures stepsPerExchange numExchanges iniModels
-                       --(writeREMCState "remc.out" "remc.pdb")
+          finalState <- remcProtocol fibrilSampler
+                                     (writeREMCStateEvery 10 "remc.out" "remc.pdb")
+                                     scoreSet temperatures stepsPerExchange numExchanges iniModels
+                                     --(writeREMCState "remc.out" "remc.pdb")
+          putStrLn "Writing final state..."
+          writeREMCState "remc_final.out" "remc_final.pdb" finalState
+          putStrLn "REMC finished successfully."
 
---remcProtocol :: (NFData m, Model.Model m) => (Modelling m -> IO (Modelling m))
---                                          -> (REMCState m -> IO ())
---                                          -> ScoringFunction
---                                          -> [Double]
---                                          -> Int
---                                          -> Int
---                                          -> [m]
---                                          -> IO (REMCState m)
+-- | Takes a current state of simulated annealing protocol, and returns
+-- replica at lowest temperature.
+fibrilOfLastReplica ::  REMCState FibrilModel -> Fibril
 fibrilOfLastReplica = fibril . model . best . ann . last . replicas
 

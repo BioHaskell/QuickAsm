@@ -60,7 +60,9 @@ data PolymerModel = PModel { polymer :: Polymer
                            }
 
 instance Model PolymerModel where
-  cartesianTopo = cPoly
+  --cartesianTopo = cPoly
+  cartesianTopo m = traceShow ("PolymerModel::cartesianTopo", 
+                               length $ filter ((=="CA") . cAtName) $ backbone $ cPoly m) $ cPoly m
   torsionTopo   = tPoly
 
 instance NFData PolymerModel where

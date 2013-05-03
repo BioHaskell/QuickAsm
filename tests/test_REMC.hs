@@ -133,7 +133,9 @@ main = do (poly, fragSet, scoreSet,
           temperatures <- prepareTemperatureSet numReplicas 8000.0 1.0
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures
-          remcProtocol polySampler (writeREMCStateEvery 10 "remc.out" "remc.pdb") scoreSet temperatures stepsPerExchange numExchanges iniModels
+          finalState <- remcProtocol polySampler (writeREMCStateEvery 10 "remc.out" "remc.pdb")
+                                     scoreSet    temperatures stepsPerExchange numExchanges iniModels
+          writeREMCState "remc.out" "remc.pdb" finalState
 
 polymerOfLastReplica = polymer . model . best . ann . last . replicas
 

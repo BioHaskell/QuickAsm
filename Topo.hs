@@ -1,4 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings, TypeFamilies #-}
+-- | Torsion angle topologies, and Cartesian topologies, with interconversion
+-- operations.
 module Topo( Tree          (..)
            , Torsion       (..)
            , Cartesian     (..)
@@ -102,19 +104,22 @@ cartesianId c = (cAtId c, cResId c, cAtName c, cResName c)
 torsionId :: Torsion -> (Int, Int, String, String)
 torsionId t = (tAtId t, tResId t, tAtName t, tResName t)
 
+-- | Topology chain -- NEW!
 data Topo r = Topo { unTopo :: [Chain r] }
 
+-- | Generic family of polymer Chain types.
 data family   Chain a
 
 -- | Start of a Chain of Torsion records.
-data instance Chain Torsion = TChain { tTree      :: Tree Torsion
-                                     , start      :: !Vector3
-                                     , tChainCode :: Char
+data instance Chain Torsion = TChain { tTree      :: Tree Torsion -- ^ model of a monomer
+                                     , start      :: !Vector3     -- ^ coordinate of the first atom
+                                                                  -- TODO: add angle of the first bond!
+                                     , tChainCode :: Char         -- ^ chain code
                                      }
 
 -- | Start of a Chain of Cartesian records.
-data instance Chain Cartesian = CChain { cTree      :: Tree Cartesian
-                                       , cChainCode :: Char
+data instance Chain Cartesian = CChain { cTree      :: Tree Cartesian -- ^ model of a monomer
+                                       , cChainCode :: Char           -- ^ chain code
                                        }
 
 -- | Molecule topology in torsion angles.
@@ -197,7 +202,12 @@ proteinBackboneT resName resId psiPrev omegaPrev phi psi sc tail =
 -- | Creates single residue protein backbone from residue name, identifier,
 -- and cartesian coordinates of atoms.
 -- Also accepts optional argument for next residue in chain, and sidechain generator (from coordinate list.)
-proteinBackboneC :: String-> Int-> [Vector3]-> ([Vector3] -> [CartesianTopo])-> [CartesianTopo]-> CartesianTopo
+proteinBackboneC :: String                         -- ^ residue name
+                 -> Int                            -- ^ residue number
+                 -> [Vector3]                      -- ^ atom coordinates
+                 -> ([Vector3] -> [CartesianTopo]) -- ^ sidechain generator
+                 -> [CartesianTopo]                -- ^ polymer tail to be connected to backbone
+                 -> CartesianTopo
 proteinBackboneC resName resId coords scGen tail =
     Node n [
       Node ca ( -- TODO: add sidechain
@@ -213,7 +223,8 @@ proteinBackboneC resName resId coords scGen tail =
 -- TODO: OXT at the end of Cartesian backbone
 -- | Constructs a Cartesian backbone, from a given string of residues names,
 -- and coordinate lists in an order in which topology is supposed to create them.
-constructCartesianBackbone :: [(String, [Vector3])] -> CartesianTopo
+constructCartesianBackbone :: [(String, [Vector3])] -- ^ list of residue names, and atom coordinates.
+                           -> CartesianTopo
 constructCartesianBackbone recs = head $ constructCartesianBackbone' recs []
   where
     constructCartesianBackbone' :: [(String, [Vector3])] -> [CartesianTopo] -> [CartesianTopo]
@@ -222,6 +233,11 @@ constructCartesianBackbone recs = head $ constructCartesianBackbone' recs []
       [proteinBackboneC resName resId coords (\[] -> []) tail]
 
 -- | Makes a Cartesian record with the given dihedral
+atWithCoord :: String    -- ^ residue name
+            -> Int       -- ^ residue ordinal number
+            -> String    -- ^ atom name
+            -> Vector3   -- ^ atom coordinate
+            -> Cartesian
 atWithCoord resName resId atName coord = Cartesian { cPos     = coord
                                                    , cAtName  = atName
                                                    , cResName = resName
@@ -320,10 +336,10 @@ xferT cart = Torsion { tPlanar   = 0
 -- * Conversion between Torsion angle and Cartesian coordinate topology.
 -- | Takes two most recent consecutive bond vectors, and current position
 --   as a tuple, and a `Torsion` record to produce Cartesian position.
-computeNextCartesian :: (Vector3, Vector3, Vector3) ->
-                           Torsion ->
-                           ((Vector3, Vector3, Vector3)
-                           ,Cartesian)
+computeNextCartesian :: (Vector3, Vector3, Vector3)  -- ^ current state: direction (previous and current) and position
+                     -> Torsion                      -- ^ torsion record for an atom
+                     -> ((Vector3, Vector3, Vector3)
+                        ,Cartesian)                  -- ^ pair of next state, and produced Cartesian record
 computeNextCartesian (prevDir, curDir, curPos) torsion =
     ((curDir, nextDir, nextPos), cart)
   where
@@ -349,7 +365,7 @@ computePositions (Node a [Node b tail]) = Node newA [Node newB $ map subforest t
     initialVectors = (Vector3 0 1 0, Vector3 1 0 0, bPos)
 
 -- | Given two previous bond vectors, and last previous atom position,
---   converts Cartesian atom into Torsion atom record.
+-- converts Cartesian atom into Torsion atom record.
 computeNextTorsion (bv1, bv2, lastPos) cartesian =
     ((bv2, bv3, cPos cartesian), tors)
   where
@@ -375,7 +391,6 @@ reconstructTopology = undefined
 -- | Residue descriptor for TorsionTopo
 tDescriptor tors = (tResName tors, tResId tors)
 
-
 -- * Backbone inspection
 -- | Returns a list of topology nodes along topology backbone
 -- (which contains only first elements of forest list.)
@@ -385,7 +400,7 @@ backbone (Node a bb) = a:backbone (last bb)
 
 -- | Returns a list of planar angles along the topology backbone.
 backbonePlanars :: TorsionTopo -> [Double]
-backbonePlanars   = tail . map tPlanar   . backbone
+backbonePlanars  = tail . map tPlanar . backbone
 
 -- | Returns a list of dihedral angles along the topology backbone.
 backboneDihedrals :: TorsionTopo -> [Double]
@@ -393,7 +408,11 @@ backboneDihedrals = tail . map tDihedral . backbone
 
 -- * Residue and atom renumbering
 -- | Renumbers residues from 1 within topology with a given "setter" and "getter" for residue id.
-renumberResiduesWith :: (a -> Int -> a) -> (a -> Int) -> Int -> Tree a -> Tree a
+renumberResiduesWith :: (a -> Int -> a) -- ^ index setter
+                     -> (a -> Int)      -- ^ index getter
+                     -> Int             -- ^ initial value
+                     -> Tree a          -- ^ input
+                     -> Tree a
 renumberResiduesWith setter getter initial t = evalState (mapM renum t) (initial, getter $ rootLabel t)
   where
     renum a = do (i, prevNum) <- get
@@ -404,15 +423,22 @@ renumberResiduesWith setter getter initial t = evalState (mapM renum t) (initial
         newNum = getter a
 
 -- | Renumbers residues from a given number within Cartesian topology.
-renumberResiduesC :: Int -> CartesianTopo -> CartesianTopo
+renumberResiduesC :: Int           -- ^ initial value
+                  -> CartesianTopo -- ^ input
+                  -> CartesianTopo
 renumberResiduesC = renumberResiduesWith (\a i -> a { cResId = i}) cResId
 
 -- | Renumbers residues from a given number within Torsion   topology.
-renumberResiduesT :: Int -> TorsionTopo -> TorsionTopo
+renumberResiduesT :: Int         -- ^ initial value
+                  -> TorsionTopo -- ^ input
+                  -> TorsionTopo
 renumberResiduesT = renumberResiduesWith (\a i -> a { tResId = i}) tResId
 
 -- | Numbers atoms starting from 1 within topology with a given "setter".
-renumberAtomsWith :: (a -> Int -> a) -> Int -> Tree a -> Tree a
+renumberAtomsWith :: (a -> Int -> a) -- ^ index setter
+                  -> Int             -- ^ initial value
+                  -> Tree a
+                  -> Tree a
 renumberAtomsWith setter initial t = evalState (mapM renum t) initial
   where
     renum a = do i <- get
@@ -420,18 +446,23 @@ renumberAtomsWith setter initial t = evalState (mapM renum t) initial
                  return $ a `setter` i
 
 -- | Renumbers Cartesian atoms within `CartesianTopo` starting from a given number.
-renumberAtomsC :: Int -> CartesianTopo -> CartesianTopo
+renumberAtomsC :: Int         -- ^ initial value
+               -> CartesianTopo
+               -> CartesianTopo
 renumberAtomsC = renumberAtomsWith (\a i -> a { cAtId = i })
 
 -- | Renumbers Torsion atoms within `TorsionTopo` starting from from a given number.
-renumberAtomsT :: Int -> TorsionTopo -> TorsionTopo
+renumberAtomsT :: Int         -- ^ initial value
+               -> TorsionTopo
+               -> TorsionTopo
 renumberAtomsT = renumberAtomsWith (\a i -> a { tAtId = i })
 
 --_test = "ATOM      1  N   VAL A   1       0.000   0.000   0.000  1.00  0.00              "
 
 -- * Convertion from and to `SilentModel`.
 -- | Converts a ROSETTA `SilentModel` to a Torsion topology.
-silentModel2TorsionTopo ::  SilentModel -> TorsionTopo
+silentModel2TorsionTopo :: SilentModel
+                        -> TorsionTopo
 silentModel2TorsionTopo = renumberAtomsT 1 . constructBackbone . prepare
   where
     prepare mdl = zipWith extractInput
@@ -443,19 +474,13 @@ silentModel2TorsionTopo = renumberAtomsT 1 . constructBackbone . prepare
                                   , omega silentRec        )
 
 
+-- | Extracts a list of residue names and numbers out of TorsionTopo.
+torsionTopo2residueDescriptors :: TorsionTopo
+                               -> [(String, Int)]
 torsionTopo2residueDescriptors = map head . group . map tDescriptor . backbone
-{-
-  where
-    bbAts = backbone topo
-    descriptors _    []     = []
-    descriptors desc (d:ds) = if desc' == desc
-                                then       descriptors desc ds
-                                else desc':descriptors desc' 
-      where
-        desc' = descriptor d
--}
 
 -- | Converts a `TorsionTopo` to a `SilentModel` with dihedrals.
+torsionTopo2SilentModel ::  TorsionTopo -> SilentModel
 torsionTopo2SilentModel topo = SilentModel { fastaSeq          = BS.pack resSeq
                                            , residues          = residueRecords
                                            , name              = "<unnamed topology>"

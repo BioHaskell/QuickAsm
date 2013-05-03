@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+-- | Implements distance restraints.
 module Score.DistanceRestraints where
 
 import System.IO(hPutStrLn, stderr)
@@ -51,7 +52,7 @@ data AtomId = AtomId { resName :: BS.ByteString, -- may be empty!
                        resId   :: Int
                      }
 -}
--- Compare atoms in accord to the expected backbone topology
+-- | Compare atoms in accord to the expected backbone topology
 -- 1. By residue index
 -- 2. By backbone order (N -> CA -> C -> next residue)
 -- 3. For other atoms -> also by order in sidechain or just after previous atom etc.
@@ -63,6 +64,7 @@ atA `compareAtoms` atB = case R.resId atA `compare` R.resId atB of
 
 -- TODO: less fallible alternative would be to keep atom indices (as their assignment doesn't vary!)
 
+-- | Compares atom names in accord with expected protein backbone topology (UNUSED.)
 atCmp "N"   _     = LT
 atCmp _    "N"    = GT
 atCmp "CA" "C"    = LT
@@ -95,7 +97,10 @@ matchTopoAtId :: R.AtomId -> Cartesian -> Bool
 matchTopoAtId atid cart = match (BS.pack $ cResName cart, BS.pack $ cAtName  cart, cResId  cart)
                                 (R.resName          atid,           R.atName atid, R.resId atid)
 
-prepareRestraintsFile :: CartesianTopo -> FilePath -> IO RestraintSet
+-- | Reads restraints file, and returns a RestraintSet matching given initial model.
+prepareRestraintsFile :: CartesianTopo   -- ^ initial model
+                      -> FilePath        -- ^ distance restraints input filename
+                      -> IO RestraintSet
 prepareRestraintsFile mdl fname = do (rset, errs) <- flip precomputeOrder mdl `fmap` R.processRestraintsFile fname
                                      forM_ errs $ \msg -> hPutStrLn stderr $ "ERROR in restraints from " ++
                                                                              fname ++ ": " ++ msg
@@ -150,7 +155,10 @@ findPositions which restraints topo = findPositions' 0 which restraints $ flatte
     findPositions' index which restrs@(r:rs) aList@(b:bs) | which r >  index =                 findPositions' (index+1) which restrs bs
     findPositions' index which restrs        []                              = error $ "Cannot find atoms for following restraints: " ++ show restrs
 
-checkDistanceRestraints' :: RestraintSet -> CartesianTopo -> V.Vector Double
+-- | Checks distance restraints, and returns a list of scoring function values.
+checkDistanceRestraints' :: RestraintSet    -- ^ restraint set
+                         -> CartesianTopo   -- ^ model
+                         -> V.Vector Double
 checkDistanceRestraints' rset carTopo = scores
   where
     empty  = V.replicate (size rset) 0 -- may also give just 0.0, since th
@@ -171,19 +179,26 @@ checkDistanceRestraints' rset carTopo = scores
     scores = V.zipWith3 score lefts rights funcs
 
 -- | Show value of each restraint.
-checkDistanceRestraints :: RestraintSet -> CartesianTopo -> [(Restraint, Double)]
+checkDistanceRestraints :: RestraintSet          -- ^ distance restraints
+                        -> CartesianTopo         -- ^ input model
+                        -> [(Restraint, Double)] -- ^ list of restraints and their current score values.
 checkDistanceRestraints rset carTopo = filter isPositive $ zip (byNum rset) $ V.toList $ checkDistanceRestraints' rset carTopo
   where
     isPositive (_r, v) = v > 0.0
 
 -- | Give a synthetic restraint score.
-scoreDistanceRestraints :: RestraintSet -> CartesianTopo -> Double
+scoreDistanceRestraints :: RestraintSet  -- ^ restraints set
+                        -> CartesianTopo -- ^ input model
+                        -> Double        -- ^ total score
 scoreDistanceRestraints rset carTopo = sqrt $ V.foldl' addSq 0.0 $ checkDistanceRestraints' rset carTopo
   where
     addSq acc d = acc + d * d
 
 -- NOTE: due to necessity of renumbering, prepareRestraintSet is better way to make subrange query!
-subrange :: RestraintSet -> (Int, Int) -> RestraintSet
+-- | Selects a subset of restraints between two given residue ordinal numbers.
+subrange :: RestraintSet -- ^ restraint set
+         -> (Int, Int)   -- ^ limits of residue numbers
+         -> RestraintSet
 subrange rset (from, to) = assertions
                              RSet { byLeftAtom  = map renum lefts
                                   , byRightAtom = map renum rights
@@ -193,27 +208,19 @@ subrange rset (from, to) = assertions
   where
     lefts  = filter restraintInRange $ byLeftAtom  rset
     rights = filter restraintInRange $ byRightAtom rset
-    restraintInRange restraint = resInRange (leftRes restraint) && resInRange (rightRes restraint)
+    restraintInRange restraint = resInRange (leftRes  restraint) &&
+                                 resInRange (rightRes restraint)
     resInRange i = (from <= i) && (i <= to)
     size'   = length lefts
     size''  = length rights
     size''' = length toRenum
-    assertions = assert $ size' == size'' && size'' == size'''
+    assertions = assert $ size'  == size''  &&
+                          size'' == size'''
     toRenum = filter restraintInRange $ byNum rset
     renumDict = IMap.fromList $ zip (map num toRenum) [0..] 
     renum restr = restr { num = renumDict IMap.! num restr }
 
-{-
-makeDistanceScore :: RestraintSet -> ScoringFunction
-makeDistanceScore rset = sf
-  where sf = ScoringFunction
-               { score      = \(_, cartopo) -> return $ scoreDistanceRestraints rset cartopo
-               , scoreShow  = \(_, cartopo) -> return $ map (\(a, b) -> BS.pack . shows a . (' ':) . shows b $ "") $ checkDistanceRestraints rset cartopo
-               , scoreLabel = "cst"
-               , scores     = \(_, cartopo) -> return $ [("cst", scoreDistanceRestraints rset cartopo)]
-               , components = [sf]
-               }
--}
+-- | Makes a distance restraint set into a ScoringFunction.
 makeDistanceScore :: RestraintSet -> ScoringFunction
 makeDistanceScore rset = simpleScoringFunction "cst" fun showFun
   where

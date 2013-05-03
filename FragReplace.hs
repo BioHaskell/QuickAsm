@@ -107,7 +107,11 @@ changeTopoAt :: Tree a -> (a -> Bool) -> (Tree a -> Tree a) -> Maybe (Tree a)
 changeTopoAt t pred mod = do (context, last, t) <- t `splitTopoAt` pred
                              return $ context $ mod t
 
-splitTopoAt :: Tree a -> (a -> Bool) -> Maybe (Tree a -> Tree a, Maybe a, Tree a)
+-- | Splits topology into two different segments, using a condition.
+splitTopoAt :: Tree a      -- ^ input
+            -> (a -> Bool) -- ^ condition for the first record of the trailing tree
+            -> Maybe (Tree a -> Tree a, Maybe a, Tree a) -- ^ triple of initial segment (as a context),
+                                                         -- last atom of this context, and trailing tree.
 splitTopoAt topo pred = splitTopoAt' topo pred Nothing id
 
 -- | Helper function to split topology at first backbone position satisfying predicate.
@@ -184,7 +188,9 @@ checkCriterionR p gen = (r <= p, gen')
   where
     (r, gen') = randomR (0.0, 1.0) gen
 
-checkCriterionIO :: Double -> IO Bool
+-- | Returns True or False with a given probability for True.
+checkCriterionIO :: Double  -- ^ probability of True value
+                 -> IO Bool -- ^ random boolean variable
 checkCriterionIO = getStdRandom . checkCriterionR
 
 -- | Checks Metropolis criterion, if given parameters, and a random number generator.

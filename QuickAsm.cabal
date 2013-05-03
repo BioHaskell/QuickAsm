@@ -29,22 +29,23 @@ source-repository head
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
-  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector, deepseq >= 1.3.0.0,
-                    random, temporary >= 1.1.0.0, time, filepath, unix, process, directory, parallel-io
+  build-depends:    base>=4.0, base <4.7, containers, hRosetta, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector,
+                    deepseq >= 1.3.0.0, random, temporary >= 1.1.0.0, time, filepath, unix, process, directory, parallel-io
   exposed-modules:  Topo,
                     Util.Angle,  Util.Fasta, Util.Timing,
                     Util.Assert, Util.Show,  Util.Random,
                     Score.ScoreSet, Score.ScoringFunction,
-                    Score.Steric,
-                    Score.RDC, Score.DistanceRestraints,
+                    Score.Steric,   Score.Planar,
+                    Score.RDC,      Score.DistanceRestraints,
                     Score.Sparta
                     AtomParams,
                     FragReplace,
                     Model, Modelling,
                     Annealing, REMC,
-                    RepeatPolymer
+                    RepeatPolymer, Fibril
   other-modules:    IdealGeomParams,
-                    Util.Geom, Util.MyPrintf, Util.Process, Util.Monad,
+                    Util.Geom,    Util.MyPrintf,
+                    Util.Process, Util.Monad,
                     Util.Parallel,
                     Data.Tree.Util
   exposed:          True
@@ -119,11 +120,11 @@ Test-suite          test_REMC_QC
   main-is:          test_REMC_QC.hs
   type:             exitcode-stdio-1.0
 
-Test-suite          test_Fibril_REMC
+Test-suite          test_REMC_Fibril
   build-depends:    QuickAsm, base, hRosetta, bytestring, AC-Vector, time, deepseq,
                     filepath, process, unix, directory, random, vector >= 0.9.1,
                     QuickCheck >= 2.5.1.1
   Hs-Source-Dirs:   tests
-  main-is:          test_Fibril_REMC.hs
+  main-is:          test_REMC_Fibril.hs
   type:             exitcode-stdio-1.0
 

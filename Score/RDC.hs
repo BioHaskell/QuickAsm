@@ -8,6 +8,7 @@ import Score.ScoringFunction
 -- TODO: implement score by RDC restraints
 data RDCRestraintSet = NotYetDefined
 
+-- | Parameters of RDC.
 data RDCParams = RDCParams { dxx, dyy, dzz :: Double }
 
 -- * Preparing RDCs to be evaluated for a given model.

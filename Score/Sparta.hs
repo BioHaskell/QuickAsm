@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+-- | Module to score chemical shifts divergence from target.
 module Score.Sparta( parseSparta
                    , parseSpartaFile
                    , runSparta

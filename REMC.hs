@@ -30,6 +30,7 @@ import           Control.Monad(forM, when, void)
 import           System.IO(hPutStrLn, hPutStr, hPrint, stderr)
 import qualified Data.ByteString.Char8 as BS
 import           GHC.Conc(forkIO)
+import           Debug.Trace(traceShow)
 
 import           Util.Parallel(parallel, withParallel)
 --import qualified Control.Monad.Parallel as ParallelMonad(mapM)
@@ -246,10 +247,12 @@ remcStage sampler steps remcState = do putStrLn "Starting REMC stage..."
 writeREMC2Silent ::  Model m => FilePath    -- ^ output filename
                              -> REMCState m -- ^ annealing state
                              -> IO ()
-writeREMC2Silent fname remc = S.writeSilentFile fname     $
-                                reverse                   $
-                                  zipWith assignName mdls $
-                                    replicaNames remc
+writeREMC2Silent fname remc = do
+    hPutStrLn stderr $ "Written silent file " ++ fname
+    S.writeSilentFile fname     $
+      reverse                   $
+        zipWith assignName mdls $
+          replicaNames remc
   where
     assignName mdl description = mdl { S.name = description }
     mdls = map replica2SilentModel . replicas $ remc
@@ -276,14 +279,15 @@ replica2SilentModel = uncurry assignScores . (conversion &&& mscore)
 writeREMC2PDB ::  Model m => FilePath    -- ^ output filename
                           -> REMCState m -- ^ annealing state
                           -> IO ()
-writeREMC2PDB fname remc = BS.writeFile fname $ BS.intercalate "\n" $
-                             BS.concat ["REMARK      Writing ",
-                                        bshow $ length $ replicas remc,
-                                        " replicas."
-                                       ] :
-                             zipWith3 replica2PDB (revOrdinals  remc)
-                                                  (temperatures remc)
-                                                  (replicas     remc)
+writeREMC2PDB fname remc = do hPutStrLn stderr $ "Writing PDB file " ++ fname
+                              BS.writeFile fname $ BS.intercalate "\n" $
+                                BS.concat ["REMARK      Writing ",
+                                           bshow $ length $ replicas remc,
+                                           " replicas."
+                                          ] :
+                                zipWith3 replica2PDB (revOrdinals  remc)
+                                                     (temperatures remc)
+                                                     (replicas     remc)
 
 -- | Helper function returning reversed ordinal numbers of the
 -- replicas/models in REMCState.
@@ -305,9 +309,10 @@ replica2PDB nth temp repl = BS.concat [ "REMARK "
                                       , "\nMODEL "
                                       , bshow nth
                                       , "\n"
-                                      , BS.pack              $
-                                        showTorsionTopoAsPDB $
-                                        torsionTopo          $
+                                      , BS.pack            $
+                                        showCartesianTopo  $
+                                        (\m -> traceShow ("Saving REMC model", length $ backbone m) m) $ 
+                                        cartesianTopo      $
                                         replica2Model repl
                                       , "\nENDMDL" ]
   where
@@ -321,7 +326,7 @@ writeREMCStateEvery :: Model m => Int         -- ^ every how many steps to write
                                -> FilePath    -- ^ PDB output filename
                                -> REMCState m -- ^ annealing state
                                -> IO ()
-writeREMCStateEvery n silentOutput pdbOutput remcState = do
+writeREMCStateEvery n silentOutput pdbOutput remcState = void $ forkIO $ do
     hPutStrLn stderr $ concat ["Performed steps: ",
                                show $ remcPerformedExchangeStages remcState,
                                " every ",
@@ -346,7 +351,7 @@ writeREMCState :: Model m => FilePath    -- ^ silent output filename
                           -> FilePath    -- ^ PDB output filename
                           -> REMCState m -- ^ current annealing state
                           -> IO ()
-writeREMCState silentOutput pdbOutput remcState = void . forkIO . time "Writing current REMC state" $
+writeREMCState silentOutput pdbOutput remcState = void . time "Writing current REMC state" $
   do writeREMC2Silent silentOutput remcState
      writeREMC2PDB    pdbOutput    remcState
 

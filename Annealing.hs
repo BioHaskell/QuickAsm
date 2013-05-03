@@ -8,7 +8,8 @@ module Annealing( AnnealingState(..)
                 , torsionFragSampler ) where
 
 import System.Random
-import Control.DeepSeq(NFData(..), deepseq)
+import Control.DeepSeq(NFData (..),
+                       deepseq)
 
 import Util.Timing
 import Util.Monad
@@ -22,11 +23,11 @@ import FragReplace
 
 -- * Annealing state parametrized by Modelling environment.
 -- | Holds current and best models, number of successes, stages, and steps.
-data AnnealingState m = AnnState { best      :: Modelling m
-                                 , current   :: Modelling m
-                                 , successes :: !Int
-                                 , stages    :: !Int
-                                 , steps     :: !Int
+data AnnealingState m = AnnState { best      :: Modelling m -- ^ best model with scoring function
+                                 , current   :: Modelling m -- ^ current model with scoring function
+                                 , successes :: !Int        -- ^ number of successes during simulated annealing so far
+                                 , stages    :: !Int        -- ^ number of stages during simulated annealing so far
+                                 , steps     :: !Int        -- ^ number of sampling attempts during simulated annealing so far
                                  }
 
 instance Show (AnnealingState m) where
@@ -44,18 +45,30 @@ instance (NFData (Modelling m)) => NFData (AnnealingState m) where
 -- | Complete annealing protocol from a given starting topology, with a
 -- given Modelling object.  Parametrized by initial model (last argument),
 -- and sampling trial step (first argument).
-annealingProtocol :: (NFData m, Model m) => (Modelling m -> IO (Modelling m))-> ScoringFunction-> Double-> Double-> Int-> Int-> m -> IO (AnnealingState m)
+annealingProtocol :: (NFData m, Model m) => (Modelling m -> IO (Modelling m)) -- ^ sampling step
+                                         -> ScoringFunction                   -- ^ scoring function
+                                         -> Double                            -- ^ initial temperature
+                                         -> Double                            -- ^ temperature drop after each stage
+                                         -> Int                               -- ^ number of stages
+                                         -> Int                               -- ^ number of steps
+                                         -> m                                 -- ^ initial model
+                                         -> IO (AnnealingState m)             -- ^ result of the annealing
 annealingProtocol sampler scoreSet initialTemperature temperatureDrop stages steps initialModel =
     do initialState <- initAnnealing scoreSet initialModel
        performAnnealing sampler initialTemperature temperatureDrop stages steps initialState
 
 -- * Sampler function template
 -- | Example sampling function for TorsionModel                           
-torsionFragSampler :: F.RFragSet -> Modelling TorsionModel -> IO (Modelling TorsionModel)
+torsionFragSampler :: F.RFragSet                  -- ^ fragments
+                   -> Modelling TorsionModel      -- ^ Modelling environment
+                   -> IO (Modelling TorsionModel) -- ^ result
 torsionFragSampler fragset = modelling $ modifyTorsionModelM $ \t -> getStdRandom $ randomReplace fragset t
 
 -- | Runs a single sampling trial at a given temperature.
-samplingStep :: (Modelling m -> IO (Modelling m))-> Double -> AnnealingState m -> IO (AnnealingState m)
+samplingStep :: (Modelling m -> IO (Modelling m)) -- ^ sampling function
+             -> Double                            -- ^ temperature
+             -> AnnealingState m                  -- ^ current AnnealingState
+             -> IO (AnnealingState m)             -- ^ results AnnealingState
 samplingStep sampler temperature annState =
   do newMdl <- sampler $ current annState
      let newScore = modelScore newMdl
@@ -73,7 +86,9 @@ samplingStep sampler temperature annState =
 
 -- TODO: here verify consistency of model and fragset!
 -- | Initializes annealing by creating Modelling objects, and AnnealingState
-initAnnealing :: (Model m) => ScoringFunction -> m -> IO (AnnealingState m)
+initAnnealing :: (Model m) => ScoringFunction       -- ^ scoring function for a modle
+                           -> m                     -- ^ initial model
+                           -> IO (AnnealingState m) -- ^ initial AnnealingState
 initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
                                 return AnnState { best      = mdling
                                                 , current   = mdling
@@ -85,12 +100,22 @@ initAnnealing scoreFxn mdl = do mdling <- initModelling scoreFxn mdl
 
 -- | A single temperature stage of annealing protocol with a given number
 -- of sampler trials.
-annealingStageWithReport :: (NFData m) => (Modelling m -> IO (Modelling m))-> Int -> Double -> AnnealingState m -> IO (AnnealingState m)
+annealingStageWithReport :: (NFData m) => (Modelling m -> IO (Modelling m)) -- ^ sampling function
+                                       -> Int                               -- ^ number of sampling steps
+                                       -> Double                            -- ^ temperature of the stage
+                                       -> AnnealingState m                  -- ^ starting AnnealingState
+                                       -> IO (AnnealingState m)             -- ^ result
 annealingStageWithReport sampler steps temperature annealingState = --time "Annealing stage" $
     do newState <- annealingStage sampler steps temperature annealingState
        print newState
        return newState
 
+-- | 
+annealingStage :: NFData m => (Modelling m -> IO (Modelling m)) -- ^ sampling function
+                           -> Int                               -- ^ number of sampling steps in a stage
+                           -> Double                            -- ^ temperature of the stage
+                           -> AnnealingState m                  -- ^ starting AnnealingState
+                           -> IO (AnnealingState m)             -- ^ result
 annealingStage sampler steps temperature annealingState =
     do result <- steps `timesM` samplingStep sampler temperature $ annealingState
        result `deepseq` return $! result { stages = stages result + 1 }
@@ -98,7 +123,13 @@ annealingStage sampler steps temperature annealingState =
 
 -- | Performs N stages of M steps of Metropolis MC annealing protocol with
 -- a given, initial temperature, temperature drop, and sampling step function.
-performAnnealing :: NFData m =>(Modelling m -> IO (Modelling m))-> Double -> Double-> Int -> Int -> AnnealingState m -> IO (AnnealingState m)
+performAnnealing :: NFData m => (Modelling m -> IO (Modelling m)) -- ^ sampling function
+                             -> Double                            -- ^ starting (highest) temperature
+                             -> Double                            -- ^ ratio of temperatures between stages (should be >1.0)
+                             -> Int                               -- ^ number of stages with a given temperature
+                             -> Int                               -- ^ number of steps at each stage
+                             -> AnnealingState m                  -- ^ input AnnealingState
+                             -> IO (AnnealingState m)
 performAnnealing sampler initialTemperature temperatureDrop stages steps =
     foldl1 composeM $ map (annealingStageWithReport sampler steps) temperatures
   where
