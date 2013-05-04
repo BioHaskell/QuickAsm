@@ -217,11 +217,11 @@ sampleFibril shiftProb twistProb fragSet aFibril gen = assertions
             else assert moveFragment $
                    sampleFibrilMonomer fragSet aFibril gen'
     -- Check input parameters
-    assertions   = assert $ ((shiftProb + twistProb              < 1.0) &&
-                             (shiftProb                          > 0.0) &&
-                             (twistProb                          > 0.0) &&
-                             (moveShift /= (moveTwist /= moveFragment)) &&
-                             (moveFragment <= not moveShift           ))
+    assertions x = assert (shiftProb + twistProb              < 1.0) $
+                   assert (shiftProb                          > 0.0) $
+                   assert (twistProb                          > 0.0) $
+                   assert (moveShift /= (moveTwist /= moveFragment)) $
+                   assert (moveFragment <= not moveShift           )   x
 
 -- | Sampling function for a fibril model, either changes shift&twist parameters,
 -- or exchanges a fragment within a monomer.
