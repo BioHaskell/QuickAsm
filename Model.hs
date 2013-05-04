@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Generic class for handling different types of models.
 module Model( Model            (..)
             , TorsionModel     (..)
@@ -8,6 +9,10 @@ import Control.DeepSeq(NFData(..))
 import Debug.Trace(traceShow) -- DEBUG
 
 import Topo
+
+#ifdef OLD_BYTESTRING
+instance NFData BS.ByteString where
+#endif
 
 -- | Represents a model that can be instantiated as Torsion topology or
 -- Cartesian topology.

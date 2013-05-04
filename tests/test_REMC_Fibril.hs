@@ -25,6 +25,7 @@ import           Topo
 import           Score.ScoreSet
 import           Score.DistanceRestraints
 import           Score.Steric
+import           Score.Planar
 import           Modelling
 import           Util.Fasta
 import           Util.Assert(assertM)
@@ -54,9 +55,9 @@ debugFragSet fragSet = do putStrLn $ "Fragment set length: "             ++ (sho
 
 -- | Prints debugging information about Fibril structure.
 debugFibril ::  Fibril -> IO ()
-debugFibril aFibril = do putStrLn $ "Monomer has OXT:"  ++ (show . tHasOXT . monomer    )                       aFibril
-                         putStrLn $ "Fibril has OXT:"   ++ (show . cHasOXT . instantiate)                       aFibril
-                         putStrLn $ "Monomer residues:" ++ (unwords . nub . map tShowRes . backbone . monomer ) aFibril
+debugFibril aFibril = do putStrLn $ "Monomer has OXT:"  ++ (show    . tHasOXT . monomer    )                        aFibril
+                         putStrLn $ "Fibril has OXT:"   ++ (show    . cHasOXT . instantiate)                        aFibril
+                         putStrLn $ "Monomer residues:" ++ (unwords . nub     . map tShowRes . backbone . monomer ) aFibril
                          putStrLn $ "Extracted monomer seq: "   ++ monoSeq
                          putStrLn $ "Recorded monomer length: " ++ (show . monomerLen)                          aFibril
                          putStrLn $ "Actual   monomer length: " ++ (show . length . topo2sequence . monomer)    aFibril
@@ -64,8 +65,8 @@ debugFibril aFibril = do putStrLn $ "Monomer has OXT:"  ++ (show . tHasOXT . mon
   where
     monoSeq = topo2sequence $ monomer aFibril
 
-(seq, ss) = ("VLYVGSKTKEGVVHGVATVAEKTKEQVTNVGGAVVTGVTAVAQKTVEGAGSIAAATGFVKK"
-            ,"-EEEEEE--------EEEE-------EEEE-EEEEEEEEEEE--EEEE-----EEEEEE--")
+(protSeq, protSS) = ("VLYVGSKTKEGVVHGVATVAEKTKEQVTNVGGAVVTGVTAVAQKTVEGAGSIAAATGFVKK"
+                    ,"-EEEEEE--------EEEE-------EEEE-EEEEEEEEEEE--EEEE-----EEEEEE--")
 
 instance NFData ScoringFunction where
 
@@ -85,7 +86,8 @@ readInputs inputSilent inputFragSet restraintsInput = do
     fragSet'  <- time "Checking fragment set" $ checkFragments topo preFrags
     distScore <- time' "Preparing distance restraints" $ prepareDistanceScore (computePositions topo)
                                                                               restraintsInput
-    scoreSet  <- time' "Preparing distance restraints" $ makeAllScores 0.001 1 restraintsInput topo
+    scoreSet  <- time' "Preparing distance restraints" $ makeAllScores' 0.001 1 restraintsInput topo
+                                                                        [(1.0, planarityScore protSeq protSS)]
     let seq = topo2sequence topo
     print $ monomerLength * monomerCount
     print $ length seq

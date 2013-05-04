@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, CPP #-}
+{-# LANGUAGE GADTs #-}
 -- | This state captures a model along its ScoringFunction.
 module Modelling( Modelling(..)
                 , TorsionModelling
@@ -24,10 +24,6 @@ data Modelling m =
                          , modelScores :: ScoreList
                          , scoring     :: ScoringFunction
                          }
-
-#ifdef OLD_BYTESTRING
-instance NFData BS.ByteString where
-#endif
 
 instance (NFData m) => NFData (Modelling m) where
   rnf ming = rnf (model ming) `seq` rnf (modelScores ming)

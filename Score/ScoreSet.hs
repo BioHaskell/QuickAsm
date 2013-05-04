@@ -2,6 +2,7 @@
 -- | Implementation of polymorphic lists of scoring functions.
 module Score.ScoreSet( makeScoreSet
                      , makeAllScores
+                     , makeAllScores'
                      , reportModelScore
                      , hReportModelScore
                      , ScoringFunction
