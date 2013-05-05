@@ -9,6 +9,7 @@ import qualified Data.Vector.Class     as V3
 import qualified Data.ByteString.Char8 as BS
 import           Data.Maybe(fromMaybe)
 import           Control.Arrow((&&&))
+import           Control.Exception(assert)
 
 import Rosetta.Util(bshow)
 import Util.Show(showEmpty)
@@ -45,7 +46,9 @@ prepare seq ss = PlanarityScore (V.fromList seq) $ V.fromList $ map isStrand ss
 bondPlanarity ::  Cartesian -- first atom in the bond
                -> Cartesian -- second atom in the bond
                -> Double
-bondPlanarity at1 at2 = abs $ (cPos at1 - cPos at2) `V3.vdot` V3.Vector3 0 0 1
+bondPlanarity at1 at2 = assert (result >= 0.0) result
+  where
+    result = abs $ (cPos at1 - cPos at2) `V3.vdot` V3.Vector3 0 0 1
 
 planaritySelectAtoms ps = groupBy   residEq                  .
                           filter    residueInStrand          .
