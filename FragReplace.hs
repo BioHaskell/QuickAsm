@@ -86,7 +86,7 @@ replaceFragment pos frag topo = debuggingOff $ topo `changeTopoAt` (\t -> tResId
   where
     -- DEBUG:
     debuggingOff = id
-    debuggingOn  = traceShow ("replaceFragment", pos, frag, availablePositions topo) 
+    debuggingOn  = traceShow ("replaceFragment", pos, frag, availablePositions topo)
     availablePositions = map (tResId &&& tAtName) . backbone
 
 -- | Generates a topology from random fragments.

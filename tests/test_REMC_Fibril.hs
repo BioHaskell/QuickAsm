@@ -128,10 +128,10 @@ main = void $
                                     return r
           let numReplicas      = 30
           let iniModels        = replicate numReplicas $ makeFibrilModel aFibril
-          let stepsPerExchange = 1
-          let numExchanges     = 1
-          --let stepsPerExchange = 3
-          --let numExchanges     = 1000
+          --let stepsPerExchange = 1
+          --let numExchanges     = 1
+          let stepsPerExchange = 10
+          let numExchanges     = 1000
           temperatures <- prepareTemperatureSet numReplicas 100.0 0.1
           putStrLn "Temperatures: "
           putStrLn $ unwords $ map (\t -> showFFloat (Just 3) t "") temperatures

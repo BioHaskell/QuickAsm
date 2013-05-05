@@ -71,8 +71,10 @@ data FibrilModel = FModel { fibril  :: Fibril
 -- TODO: here TorsionTopo is of different length than CartesianTopo!
 
 instance Model FibrilModel where
-  cartesianTopo fm = traceShow ("Fibril::cartesianTopo", length $ filter ((=="CA") . cAtName) $ backbone $ cFibril fm) $
-                               cFibril fm
+  cartesianTopo fm = debugging fm $ cFibril fm
+    where
+      debugging fm = id
+      --debugging fm = traceShow ("Fibril::cartesianTopo", length $ filter ((=="CA") . cAtName) $ backbone $ cFibril fm)
   torsionTopo   = tFibril -- there are no "cut" nodes in TorsionTopo so far!
 
 instance NFData FibrilModel where
@@ -87,23 +89,25 @@ makeFibrilModel f = FModel { fibril  = f
 
 -- | Instantiates a polymer of N identical monomer units, linked by a linker unit.
 instantiate :: Fibril -> CartesianTopo
-instantiate f = traceShow ("instantiate",
-                           length $ filter ((=="CA") . cAtName) $ backbone result,
-                           repeats f) result
+instantiate f = debugging result
   where
-    result = (  renumberAtomsC       1              $
-                renumberResiduesC    1              $
-                foldr1  glueCartesianChain          $
-                zipWith shiftMonomer [1..repeats f] $
-                repeat                              $
-                computePositions                    $
-                monomer              f              )
+    result = (renumberAtomsC       1              $
+              renumberResiduesC    1              $
+              foldr1  glueCartesianChain          $
+              zipWith shiftMonomer [1..repeats f] $
+              repeat                              $
+              computePositions                    $
+              monomer              f              )
     shiftMonomer num mono = fmap xform mono
       where
         -- TODO: add twist!
         xform cart@(Cartesian { cPos =                                         pos }) =
                          cart { cPos = shiftTwist (shift f * fromIntegral num)
                                                   (twist f                   ) pos }
+    debugging = id
+    {-debugging = traceShow ("instantiate",
+                           length $ filter ((=="CA") . cAtName) $ backbone result,
+                           repeats f) -}
 
 {-# INLINE shiftTwist #-}
 -- | Shift & twist along Z axis.
@@ -142,13 +146,14 @@ findResId i torsion = tResId torsion == i
 -- | Replaces OXT of first chain with the second chain.
 -- TODO: move it to FragReplacement.
 glueCartesianChain :: CartesianTopo -> CartesianTopo -> CartesianTopo
-topo1 `glueCartesianChain` topo2 = traceShow ("glueCartesianChain",
-                                              length $ backbone topo1 ,
-                                              length $ backbone topo2 ,
-                                              length $ backbone result)
-                                             result
+topo1 `glueCartesianChain` topo2 = debugging result
   where
     Just result = topo1 `changeTopoAt` (\t -> cAtName t == "OXT") $ const topo2
+    debugging = id
+    {- debugging = traceShow ("glueCartesianChain",
+                              length $ backbone topo1 ,
+                              length $ backbone topo2 ,
+                              length $ backbone result) -}
 
 -- | Prepare fragment set by removing those that span the boundary between
 -- monomer and linker.
