@@ -26,10 +26,11 @@ data TorsionModel = TModel { tTopo       :: TorsionTopo
                            }
 
 instance Model TorsionModel where
-  cartesianTopo m = debugging $ cTopo m
+  cartesianTopo m = debuggingOff $ cTopo m
     where
-      debugging = traceShow ("TorsionModel::cartesianTopo",
-                             length $ filter ((=="CA") . cAtName) $ backbone $ cTopo m)
+      debuggingOff = id
+      debuggingOn  = traceShow ("TorsionModel::cartesianTopo",
+                                length $ filter ((=="CA") . cAtName) $ backbone $ cTopo m)
   torsionTopo     = tTopo
 
 instance NFData TorsionModel where

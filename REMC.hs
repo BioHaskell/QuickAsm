@@ -311,7 +311,7 @@ replica2PDB nth temp repl = BS.concat [ "REMARK "
                                       , "\n"
                                       , BS.pack            $
                                         showCartesianTopo  $
-                                        (\m -> traceShow ("Saving REMC model", length $ backbone m) m) $ 
+                                        debuggingOff       $ 
                                         cartesianTopo      $
                                         replica2Model repl
                                       , "\nENDMDL" ]
@@ -319,6 +319,9 @@ replica2PDB nth temp repl = BS.concat [ "REMARK "
     scores                    = modelScores . current . ann $ repl
     smdl                      = replica2SilentModel repl
     (scoreHeader, showScores) = S.makeScoreShower [smdl]
+    debuggingOff  = id
+    debuggingOn m = traceShow ("Saving REMC model",
+                               length $ backbone m) m
 
 -- | Write annealing state to disk every Nth exchange.
 writeREMCStateEvery :: Model m => Int         -- ^ every how many steps to write files
