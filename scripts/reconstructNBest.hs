@@ -19,7 +19,7 @@ import Topo
 model2topo :: SilentModel -> CartesianTopo
 model2topo = computePositions . silentModel2TorsionTopo
 
-printUsage = do hPutStrLn stderr "Usage: reconstructNBest <count> <input.out> <output.pdb>"
+printUsage = do hPutStrLn stderr "Usage: reconstructNBest <count> <input.out> <output directory>"
                 exitFailure
 
 debug = hPutStrLn stderr
