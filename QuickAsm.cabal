@@ -65,6 +65,11 @@ Executable          checkRestraints
   Hs-Source-Dirs:   scripts
   main-is:          checkRestraints.hs
 
+Executable          checkRestraintsWithBetaSkip
+  build-depends:    QuickAsm, base, hRosetta, bytestring, Octree >= 0.5, containers
+  Hs-Source-Dirs:   scripts
+  main-is:          checkRestraintsWithBetaSkip.hs
+
 Executable          reconstructBest
   build-depends:    QuickAsm, base, hRosetta, bytestring
   Hs-Source-Dirs:   scripts
