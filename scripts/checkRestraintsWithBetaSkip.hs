@@ -103,7 +103,7 @@ computeSkippableScores skippableRSets cart = do
     printSScore (sSet, sScore) = do
       print "printSScore" 
       case sScore of 
-        [] -> do print $ "Empty sSet " ++ showRestraintSetAtoms sSet
+        [] -> do hPrint stderr $ "Empty restraint set: " ++ showRestraintSetAtoms sSet ++ "!!!"
                  return []
         _  -> do print $ showRestraintSetAtoms sSet
                  putStr "sSet: "
