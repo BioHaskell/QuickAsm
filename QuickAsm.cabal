@@ -29,7 +29,7 @@ source-repository head
 
 Library
   ghc-options:      -fspec-constr-count=4 -O3 
-  build-depends:    base>=4.0, base <4.7, containers, hRosetta >= 0.5.6, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector,
+  build-depends:    base>=4.0, base <4.9, containers, hRosetta >= 0.5.6, AC-Vector, uniplate, mtl, bytestring, Octree >= 0.5, vector,
                     deepseq >= 1.3.0.0, random, temporary >= 1.1.0.0, time, filepath, unix, process, directory, parallel-io
   exposed-modules:  Topo,
                     Util.Angle,  Util.Fasta, Util.Timing,
